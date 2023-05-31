@@ -125,7 +125,9 @@ class FaceRestoreHelper(object):
                              only_center_face=False,
                              resize=None,
                              blur_ratio=0.01,
-                             eye_dist_threshold=None):
+                             eye_dist_threshold=None,
+                             max_faces=None
+                             ):
         if resize is None:
             scale = 1
             input_img = self.input_img
@@ -137,9 +139,11 @@ class FaceRestoreHelper(object):
 
         with torch.no_grad():
             bboxes = self.face_det.detect_faces(input_img, 0.97) * scale
+
+        n_faces = 0
         for bbox in bboxes:
             # remove faces with too small eye distance: side faces or too small faces
-            eye_dist = np.linalg.norm([bbox[5] - bbox[7], bbox[6] - bbox[8]])
+            eye_dist = np.linalg.norm([bbox[6] - bbox[8], bbox[7] - bbox[9]])
             if eye_dist_threshold is not None and (eye_dist < eye_dist_threshold):
                 continue
 
@@ -149,6 +153,10 @@ class FaceRestoreHelper(object):
                 landmark = np.array([[bbox[i], bbox[i + 1]] for i in range(5, 15, 2)])
             self.all_landmarks_5.append(landmark)
             self.det_faces.append(bbox[0:5])
+            n_faces += 1
+            if max_faces is not None and n_faces >= max_faces:
+                break
+
         if len(self.det_faces) == 0:
             return 0
         if only_keep_largest:
