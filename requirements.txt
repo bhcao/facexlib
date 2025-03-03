@@ -8,3 +8,5 @@ scipy
 torch
 torchvision
 tqdm
+ultralytics
+timm>=0.9.0

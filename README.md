@@ -32,6 +32,7 @@ Other recommended projects: &emsp; :arrow_forward: [Real-ESRGAN](https://github.
 | [Matting](facexlib/matting/README.md) | [MODNet](https://github.com/ZHKKKe/MODNet) | CC 4.0 |
 | [Headpose](facexlib/headpose/README.md) | [deep-head-pose](https://github.com/natanielruiz/deep-head-pose) | Apache 2.0  |
 | [Tracking](facexlib/tracking/README.md) |  [SORT](https://github.com/abewley/sort) | GPL 3.0 |
+| [Gender & Age](facexlib/genderage/README.md) | [MiVOLO](https://github.com/WildChlamydia/MiVOLO) | - |
 | [Assessment](facexlib/assessment/README.md) | [hyperIQA](https://github.com/SSL92/hyperIQA) | - |
 | [Utils](facexlib/utils/README.md) | Face Restoration Helper | - |
 
@@ -46,7 +47,7 @@ Other recommended projects: &emsp; :arrow_forward: [Real-ESRGAN](https://github.
 ### Installation
 
 ```bash
-pip install facexlib
+pip install git+https://github.com/bhcao/facexlib.git
 ```
 
 ### Pre-trained models
