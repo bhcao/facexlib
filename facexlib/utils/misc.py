@@ -194,3 +194,50 @@ def scandir(dir_path, suffix=None, recursive=False, full_path=False):
                     continue
 
     return _scandir(dir_path, suffix=suffix, recursive=recursive)
+
+def box_iou(box1, box2, over_second=False):
+    """
+    Return intersection-over-union (Jaccard index) of boxes.
+    If over_second == True, return mean(intersection-over-union, (inter / area2))
+
+    Both sets of boxes are expected to be in (x1, y1, x2, y2) format. The last element will
+    be seen as score and will be ignored.
+
+    Args:
+        box1 (Tensor[N | None, 4] | list)
+        box2 (Tensor[M | None, 4] | list)
+
+    Returns:
+        iou (Tensor[N | None, M | None]): the NxM matrix containing the pairwise
+            IoU values for every element in boxes1 and boxes2
+    """
+    # in case they are lists
+    box1 = np.array(box1)
+    box2 = np.array(box2)
+
+    box1_ = box1[None, :] if len(box1.shape) == 1 else box1
+    box2_ = box2[None, :] if len(box2.shape) == 1 else box2
+
+    def box_area(box):
+        # box = 4xn
+        return (box[2] - box[0]) * (box[3] - box[1])
+
+    area1 = box_area(box1_.T)
+    area2 = box_area(box2_.T)
+
+    # inter(N,M) = (rb(N,M,2) - lt(N,M,2)).clamp(0).prod(2) # ignore score
+    box_sizes = np.minimum(box1_[:, None, 2:4], box2_[:, 2:4]) - np.maximum(box1_[:, None, :2], box2_[:, :2])
+    inter = np.prod(np.clip(box_sizes, a_min=0, a_max=None), axis=2)
+
+    iou = inter / (area1[:, None] + area2 - inter)  # iou = inter / (area1 + area2 - inter)
+    if over_second:
+        result = (inter / area2 + iou) / 2  # mean(inter / area2, iou)
+    else:
+        result = iou
+    
+    if len(box2.shape) == 1:
+        result = result.squeeze(1)
+    if len(box1.shape) == 1:
+        result = result.squeeze(0)
+
+    return result

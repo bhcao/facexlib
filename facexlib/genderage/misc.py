@@ -7,6 +7,8 @@ import torchvision.transforms.functional as F
 from scipy.optimize import linear_sum_assignment
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
+from facexlib.utils.misc import box_iou
+
 CROP_ROUND_RATE = 0.1
 MIN_PERSON_CROP_NONZERO = 0.5
 
@@ -17,39 +19,6 @@ def aggregate_votes_winsorized(ages, max_age_dist=6):
     median = np.median(ages)
     ages = np.clip(ages, median - max_age_dist, median + max_age_dist)
     return np.mean(ages)
-
-
-def box_iou(box1, box2, over_second=False):
-    """
-    Return intersection-over-union (Jaccard index) of boxes.
-    If over_second == True, return mean(intersection-over-union, (inter / area2))
-
-    Both sets of boxes are expected to be in (x1, y1, x2, y2) format.
-
-    Arguments:
-        box1 (Tensor[N, 4])
-        box2 (Tensor[M, 4])
-    Returns:
-        iou (Tensor[N, M]): the NxM matrix containing the pairwise
-            IoU values for every element in boxes1 and boxes2
-    """
-
-    def box_area(box):
-        # box = 4xn
-        return (box[2] - box[0]) * (box[3] - box[1])
-
-    area1 = box_area(box1.T)
-    area2 = box_area(box2.T)
-
-    # inter(N,M) = (rb(N,M,2) - lt(N,M,2)).clamp(0).prod(2)
-    inter = (torch.min(box1[:, None, 2:], box2[:, 2:]) - torch.max(box1[:, None, :2], box2[:, :2])).clamp(0).prod(2)
-
-    iou = inter / (area1[:, None] + area2 - inter)  # iou = inter / (area1 + area2 - inter)
-    if over_second:
-        return (inter / area2 + iou) / 2  # mean(inter / area2, iou)
-    else:
-        return iou
-
 
 def assign_faces(
     persons_bboxes: List[torch.tensor], faces_bboxes: List[torch.tensor], iou_thresh: float = 0.0001
@@ -68,7 +37,7 @@ def assign_faces(
     if len(persons_bboxes) == 0 or len(faces_bboxes) == 0:
         return assigned_faces, unassigned_persons_inds
 
-    cost_matrix = box_iou(torch.stack(persons_bboxes), torch.stack(faces_bboxes), over_second=True).cpu().numpy()
+    cost_matrix = box_iou(torch.stack(persons_bboxes).cpu().numpy(), torch.stack(faces_bboxes).cpu().numpy(), over_second=True)
     persons_indexes, face_indexes = [], []
 
     if len(cost_matrix) > 0:

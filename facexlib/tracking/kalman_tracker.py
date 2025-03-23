@@ -82,7 +82,7 @@ class KalmanBoxTracker(object):
         self.history = []
         self.hits += 1
         self.hit_streak += 1  # 连续命中
-        if bbox != []:
+        if len(bbox) != 0:
             self.kf.update(convert_bbox_to_z(bbox))
             self.predict_num = 0
         else:

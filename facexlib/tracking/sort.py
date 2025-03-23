@@ -30,6 +30,10 @@ class SORT(object):
         Returns:
              a similar array, where the last column is the object ID.
         """
+
+        # Allow input of list and empty list
+        dets = np.empty((0, 5)) if len(dets) == 0 else np.array(dets)
+
         self.frame_count += 1
 
         # get predicted locations from existing trackers
@@ -46,7 +50,7 @@ class SORT(object):
         for t in reversed(to_del):
             self.trackers.pop(t)
 
-        if dets != []:
+        if len(dets) != 0:
             matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(  # noqa: E501
                 dets, trks)
 
@@ -66,7 +70,7 @@ class SORT(object):
 
         i = len(self.trackers)
         for trk in reversed(self.trackers):
-            if dets == []:
+            if len(dets) == 0:
                 trk.update([])
 
             d = trk.get_state()

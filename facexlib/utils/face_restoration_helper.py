@@ -6,7 +6,7 @@ from torchvision.transforms.functional import normalize
 
 from facexlib.detection import init_detection_model
 from facexlib.parsing import init_parsing_model
-from facexlib.utils.misc import img2tensor, imwrite
+from facexlib.utils.misc import img2tensor, imwrite, box_iou
 
 
 def get_largest_face(det_faces, h, w):
@@ -129,8 +129,21 @@ class FaceRestoreHelper(object):
                              resize=None,
                              blur_ratio=0.01,
                              eye_dist_threshold=None,
-                             max_faces=None
+                             max_faces=None,
+                             bbox=None,
                              ):
+        '''
+        Get 5 landmarks for each face in the image.
+
+        Args:
+            only_keep_largest (bool): Whether to only keep the largest face in the image.
+            only_center_face (bool): Whether to only keep the face closest to the center of the image.
+            resize (int): Resize the minimum side of the image to this value, keep the aspect ratio.
+            blur_ratio (float): Blur the image with a box filter of size blur_ratio * face_size.
+            eye_dist_threshold (float): Remove faces with eye distance less than this threshold.
+            max_faces (int): Maximum number of faces to keep.
+            bbox (list[4] | Tensor[4]): Only keep faces within the given bounding box when detected multiple faces.
+        '''
         if resize is None:
             scale = 1
             input_img = self.input_img
@@ -142,6 +155,9 @@ class FaceRestoreHelper(object):
 
         with torch.no_grad():
             bboxes = self.face_det.detect_faces(input_img, 0.97) * scale
+        
+        if bbox is not None:
+            bboxes = bboxes[np.argmax(box_iou(bboxes, bbox))][None]
 
         n_faces = 0
         for bbox in bboxes:

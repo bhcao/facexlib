@@ -6,7 +6,9 @@ from typing import Dict, List, Optional, Tuple
 import cv2
 import numpy as np
 import torch
-from facexlib.genderage.misc import aggregate_votes_winsorized, assign_faces, box_iou
+from facexlib.genderage.misc import aggregate_votes_winsorized, assign_faces
+from facexlib.utils.misc import box_iou
+
 from ultralytics.engine.results import Results
 from ultralytics.utils.plotting import Annotator, colors
 
@@ -414,7 +416,7 @@ class PersonAndFaceResult:
             self.get_bbox_by_ind(other_ind, *full_image.shape[:2]) for other_ind in range(len(self.yolo_results.boxes))
         ]
 
-        iou_matrix = box_iou(torch.stack([obj_bbox]), torch.stack(other_bboxes)).cpu().numpy()[0]
+        iou_matrix = box_iou(torch.stack([obj_bbox]).cpu().numpy(), torch.stack(other_bboxes).cpu().numpy())[0]
 
         # cut out other objects in case of intersection
         for other_ind, (det, iou) in enumerate(zip(self.yolo_results.boxes, iou_matrix)):

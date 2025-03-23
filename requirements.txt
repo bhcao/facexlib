@@ -1,5 +1,4 @@
 filterpy
-numba
 numpy
 opencv-python
 Pillow
