@@ -43,7 +43,7 @@ Other recommended projects: &emsp; :arrow_forward: [Real-ESRGAN](https://github.
 
 ## :wrench: Dependencies and Installation
 
-- Python >= 3.7 (Recommend to use [Anaconda](https://www.anaconda.com/download/#linux) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html))
+- Python >= 3.7 (Recommend to use [Anaconda](https://www.anaconda.com/download/#linux) or [Miniforge (mamba)](https://github.com/conda-forge/miniforge))
 - [PyTorch >= 1.7](https://pytorch.org/)
 - Option: NVIDIA GPU + [CUDA](https://developer.nvidia.com/cuda-downloads)
 

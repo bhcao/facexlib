@@ -6,8 +6,8 @@ from facexlib.genderage import init_genderage_model
 from facexlib.detection import init_detection_model
 
 def main(args):    
-    det_net = init_detection_model(args.detection_model_name, device="cpu", half=args.half)
-    genderage_net = init_genderage_model(args.genderage_model_name, device="cpu", half=args.half)
+    det_net = init_detection_model(args.detection_model_name, half=args.half)
+    genderage_net = init_genderage_model(args.genderage_model_name, half=args.half)
 
     img = cv2.imread(args.img_path)
     with torch.no_grad():

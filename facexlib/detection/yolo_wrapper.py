@@ -3,7 +3,6 @@ from typing import Dict, Union
 
 import numpy as np
 import PIL
-import torch
 from facexlib.genderage.structures import PersonAndFaceResult
 from ultralytics import YOLO
 from ultralytics.engine.results import Results
@@ -24,16 +23,14 @@ class YOLOWrapper:
         self.yolo = YOLO(weights)
         self.yolo.fuse()
 
-        self.device = torch.device(device)
-        self.half = half and self.device.type != "cpu"
-
-        if self.half:
+        self.yolo = self.yolo.to(device)
+        if half and self.device.type != "cpu":
             self.yolo.model = self.yolo.model.half()
 
         self.detector_names: Dict[int, str] = self.yolo.model.names
 
         # init yolo.predictor
-        self.detector_kwargs = {"conf": conf_thresh, "iou": iou_thresh, "half": self.half, "verbose": verbose}
+        self.detector_kwargs = {"conf": conf_thresh, "iou": iou_thresh, "half": half, "verbose": verbose}
         # self.yolo.predict(**self.detector_kwargs)
 
     # change name to keep the same with RetinaFace

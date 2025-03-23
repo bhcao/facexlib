@@ -8,8 +8,7 @@ from facexlib.utils.misc import imwrite
 def main(args):
 
     # create model, tile_size: max patch size for the tile mode, suitable with your GPU memory
-    model = init_resolution_model(args.model_name, args.scale, tile_size = 256, tile_pad = 32,
-                                  device = 'cpu', half = args.half)
+    model = init_resolution_model(args.model_name, args.scale, tile_size = 256, tile_pad = 32, half = args.half)
     print(f'Model [{model.__class__.__name__}] is created.')
 
     with torch.no_grad():

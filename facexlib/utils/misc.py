@@ -2,14 +2,9 @@ import math
 import cv2
 import logging
 import os
-import os.path as osp
 import numpy as np
 import torch
-from torch.hub import download_url_to_file, get_dir
 from torchvision.utils import make_grid
-from urllib.parse import urlparse
-
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 initialized_logger = {}
 
@@ -161,30 +156,6 @@ def tensor2img(tensor, rgb2bgr=True, out_type=np.uint8, min_max=(0, 1)):
     return result
 
 
-def load_file_from_url(url, model_dir=None, progress=True, file_name=None, save_dir=None, block_downloading=True):
-    """Ref:https://github.com/1adrianb/face-alignment/blob/master/face_alignment/utils.py
-    """
-    if model_dir is None:
-        hub_dir = get_dir()
-        model_dir = os.path.join(hub_dir, 'checkpoints')
-
-    if save_dir is None:
-        save_dir = os.path.join(ROOT_DIR, model_dir)
-    os.makedirs(save_dir, exist_ok=True)
-
-    parts = urlparse(url)
-    filename = os.path.basename(parts.path)
-    if file_name is not None:
-        filename = file_name
-    cached_file = os.path.abspath(os.path.join(save_dir, filename))
-    if not os.path.exists(cached_file):
-        if block_downloading:
-            raise RuntimeError(f'{cached_file} does not exist. Please download it manually from {url}')
-        print(f'Downloading: "{url}" to {cached_file}\n')
-        download_url_to_file(url, cached_file, hash_prefix=None, progress=progress)
-    return cached_file
-
-
 def scandir(dir_path, suffix=None, recursive=False, full_path=False):
     """Scan a directory to find the interested files.
     Args:
@@ -210,7 +181,7 @@ def scandir(dir_path, suffix=None, recursive=False, full_path=False):
                 if full_path:
                     return_path = entry.path
                 else:
-                    return_path = osp.relpath(entry.path, root)
+                    return_path = os.path.relpath(entry.path, root)
 
                 if suffix is None:
                     yield return_path

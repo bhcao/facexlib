@@ -6,20 +6,18 @@ from .retinaface import RetinaFace
 from .yolo_wrapper import YOLOWrapper
 
 
-def init_detection_model(model_name, half=False, device='cuda', model_rootpath=None):
+def init_detection_model(model_name, half=False, device=None, model_rootpath=None):
+    if device is None:
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
     if model_name == 'retinaface_resnet50':
         model = RetinaFace(network_name='resnet50', half=half, device=device)
-        model_url = 'https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth'
     elif model_name == 'retinaface_mobile0.25':
         model = RetinaFace(network_name='mobile0.25', half=half, device=device)
-        model_url = 'https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_mobilenet0.25_Final.pth'
-    elif model_name == 'yolov8x_person_face':
-        model_url = 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/yolov8x_person_face.pt'
-    else:
+    elif model_name != 'yolov8x_person_face':
         raise NotImplementedError(f'{model_name} is not implemented.')
 
-    model_path = load_file_from_url(
-        url=model_url, model_dir='facexlib/weights', progress=True, file_name=None, save_dir=model_rootpath)
+    model_path = load_file_from_url(model_name, save_dir=model_rootpath)
     
     if model_name == 'yolov8x_person_face':
         return YOLOWrapper(model_path, half=half, device=device)

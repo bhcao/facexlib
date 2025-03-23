@@ -5,15 +5,16 @@ from facexlib.utils import load_file_from_url
 from .modnet import MODNet
 
 
-def init_matting_model(model_name='modnet', half=False, device='cuda', model_rootpath=None):
+def init_matting_model(model_name='modnet', half=False, device=None, model_rootpath=None):
+    if device is None:
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
     if model_name == 'modnet':
         model = MODNet(backbone_pretrained=False)
-        model_url = 'https://github.com/xinntao/facexlib/releases/download/v0.2.0/matting_modnet_portrait.pth'
     else:
         raise NotImplementedError(f'{model_name} is not implemented.')
 
-    model_path = load_file_from_url(
-        url=model_url, model_dir='facexlib/weights', progress=True, file_name=None, save_dir=model_rootpath)
+    model_path = load_file_from_url(model_name, save_dir=model_rootpath)
     # TODO: clean pretrained model
     load_net = torch.load(model_path, map_location=lambda storage, loc: storage)
     # remove unnecessary 'module.'
