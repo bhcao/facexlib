@@ -17,6 +17,8 @@ MODEL_ZOO = {
     'bisenet': 'https://github.com/xinntao/facexlib/releases/download/v0.2.0/parsing_bisenet.pth',
     'parsenet': 'https://github.com/xinntao/facexlib/releases/download/v0.2.2/parsing_parsenet.pth',
     'arcface': 'https://github.com/xinntao/facexlib/releases/download/v0.1.0/recognition_arcface_ir_se50.pth',
+    'antelopev2': 'https://github.com/bhcao/facexlib/releases/download/v0.3.2/antelopev2.pth',
+    'buffalo_l': 'https://github.com/bhcao/facexlib/releases/download/v0.3.2/buffalo_l.pth',
     'HAT-S_x2': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT-S_SRx2.pth',
     'HAT-S_x4': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT-S_SRx4.pth',
     'HAT_x2': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT_SRx2_ImageNet-pretrain.pth',
@@ -25,8 +27,10 @@ MODEL_ZOO = {
     'HAT-L_x4': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT-L_SRx4_ImageNet-pretrain.pth',
 }
 
-def load_file_from_url(model_name_or_url, progress=True, file_name=None, save_dir=None, block_downloading=True):
+def load_file_from_url(model_name_or_url, progress=True, file_name=None, save_dir=None):
     """Ref:https://github.com/1adrianb/face-alignment/blob/master/face_alignment/utils.py
+
+    Set os.environ['BLOCK_DOWNLOADING'] == 'false' to cancel block downloading.
     """
 
     if model_name_or_url.startswith('http://') or model_name_or_url.startswith('https://'):
@@ -44,7 +48,8 @@ def load_file_from_url(model_name_or_url, progress=True, file_name=None, save_di
         filename = file_name
     cached_file = os.path.abspath(os.path.join(save_dir, filename))
     if not os.path.exists(cached_file):
-        if block_downloading:
+        block_downloading = os.environ.get('BLOCK_DOWNLOADING', 'true')
+        if block_downloading.lower() == 'true':
             raise RuntimeError(f'{cached_file} does not exist. Please download it manually from {url}')
         print(f'Downloading: "{url}" to {cached_file}\n')
         download_url_to_file(url, cached_file, hash_prefix=None, progress=progress)

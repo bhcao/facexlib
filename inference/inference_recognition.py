@@ -1,48 +1,50 @@
+# Warning: We havn't tested the code on original arcface model
+
 import argparse
-import glob
 import math
+import cv2
 import numpy as np
-import os
 import torch
 
-from facexlib.recognition import ResNetArcFace, cosin_metric, load_image
+from facexlib.detection import init_detection_model
+from facexlib.recognition import init_recognition_model, calculate_sim, norm_crop
+
+
+def main(args):
+    det_net = init_detection_model(args.det_model_name)
+    recog_net = init_recognition_model(args.recog_model_name)
+
+    img1 = cv2.imread(args.img_path1)
+    img2 = cv2.imread(args.img_path2)
+
+    with torch.no_grad():
+        bbox1 = det_net.detect_faces(img1, 0.97)[0]
+        bbox2 = det_net.detect_faces(img2, 0.97)[0]
+
+        img1_crop = norm_crop(img1, bbox1[5:])
+        img2_crop = norm_crop(img2, bbox2[5:])
+
+        output = recog_net.get_feat([img1_crop, img2_crop])
+
+    print(output.size())
+    output = output.data.cpu().numpy()
+
+    dist = calculate_sim(output[0], output[1])
+    dist = np.arccos(dist) / math.pi * 180
+
+    if dist < 10:
+        print(f'Theses two images are almost identical (distance: {dist:.2f} degrees).')
+    else:
+        print(f'Theses two images are not identical (distance: {dist:.2f} degrees).')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--folder1', type=str)
-    parser.add_argument('--folder2', type=str)
-    parser.add_argument('--model_path', type=str, default='facexlib/recognition/weights/arcface_resnet18.pth')
+    parser.add_argument('--img_path1', type=str, default='../assets/test.jpg')
+    parser.add_argument('--img_path2', type=str, default='../assets/test2.jpg')
+    parser.add_argument(
+        '--det_model_name', type=str, default='retinaface_resnet50', help='retinaface_resnet50 | retinaface_mobile0.25')
+    parser.add_argument('--recog_model_name', type=str, default='antelopev2', help='arcface | antelopev2 | buffalo_l')
 
     args = parser.parse_args()
-
-    img_list1 = sorted(glob.glob(os.path.join(args.folder1, '*')))
-    img_list2 = sorted(glob.glob(os.path.join(args.folder2, '*')))
-    print(img_list1, img_list2)
-    model = ResNetArcFace(block='IRBlock', layers=(2, 2, 2, 2), use_se=False)
-    model.load_state_dict(torch.load(args.model_path))
-    model.to(torch.device('cuda'))
-    model.eval()
-
-    dist_list = []
-    identical_count = 0
-    for idx, (img_path1, img_path2) in enumerate(zip(img_list1, img_list2)):
-        basename = os.path.splitext(os.path.basename(img_path1))[0]
-        img1 = load_image(img_path1)
-        img2 = load_image(img_path2)
-
-        data = torch.stack([img1, img2], dim=0)
-        data = data.to(torch.device('cuda'))
-        output = model(data)
-        print(output.size())
-        output = output.data.cpu().numpy()
-        dist = cosin_metric(output[0], output[1])
-        dist = np.arccos(dist) / math.pi * 180
-        print(f'{idx} - {dist} o : {basename}')
-        if dist < 1:
-            print(f'{basename} is almost identical to original.')
-            identical_count += 1
-        else:
-            dist_list.append(dist)
-
-    print(f'Result dist: {sum(dist_list) / len(dist_list):.6f}')
-    print(f'identical count: {identical_count}')
+    main(args)      
