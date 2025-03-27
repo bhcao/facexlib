@@ -16,8 +16,9 @@
 Only PyTorch reference codes are available. For training or fine-tuning, please refer to their original repositories listed below. <br>
 Note that we just provide a collection of these algorithms. You need to refer to their original LICENCEs for your intended use.
 
+We have supported the detection and recognition models `antelopev2` and `buffalo_l` for [Insighface](https://github.com/deepinsight/insightface) (identical models with ignorable differences), without the need to install any onnx runtime. For users who are unable or unwilling to install the onnx runtime due to issues with glib, python, or CUDA versions, we suggest using our repository. Welcome:heart_eyes:
+
 If facexlib is helpful in your projects, please help to :star: this repo. Thanks:blush: <br>
-Other recommended projects: &emsp; :arrow_forward: [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) &emsp; :arrow_forward: [GFPGAN](https://github.com/TencentARC/GFPGAN) &emsp; :arrow_forward: [BasicSR](https://github.com/xinntao/BasicSR)
 
 ---
 

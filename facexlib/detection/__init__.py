@@ -4,6 +4,7 @@ from copy import deepcopy
 from facexlib.utils import load_file_from_url
 from .retinaface import RetinaFace
 from .yolo_wrapper import YOLOWrapper
+from .insight_retina import InsightRetina
 
 
 def init_detection_model(model_name, half=False, device=None, model_rootpath=None):
@@ -14,6 +15,8 @@ def init_detection_model(model_name, half=False, device=None, model_rootpath=Non
         model = RetinaFace(network_name='resnet50', half=half, device=device)
     elif model_name == 'retinaface_mobile0.25':
         model = RetinaFace(network_name='mobile0.25', half=half, device=device)
+    elif model_name == 'insight_retina':
+        model = InsightRetina()
     elif model_name != 'yolov8x_person_face':
         raise NotImplementedError(f'{model_name} is not implemented.')
 

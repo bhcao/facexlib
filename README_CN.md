@@ -16,8 +16,9 @@
 仅提供 PyTorch 参考代码。有关训练或微调，请参考下面列出的原始代码库。<br>
 请注意，我们仅提供这些算法的集合。对于您的预期用途，请参考它们的原始许可证。
 
+我们支持了 [Insighface](https://github.com/deepinsight/insightface) 的检测和识别模型 `antelopev2` 以及 `buffalo_l`（相同模型，误差可忽略），无需安装任何 onnx 运行时。对于由于 glib、python 或 CUDA 版本的问题而无法或不愿意安装 onnx 运行时的用户，我们建议使用我们的存储库。欢迎 :heart_eyes:
+
 如果 facexlib 对您的项目有所帮助，请帮助 :star: 这个仓库。谢谢 :blush:<br>
-其他推荐项目：&emsp; :arrow_forward: [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) &emsp; :arrow_forward: [GFPGAN](https://github.com/TencentARC/GFPGAN) &emsp; :arrow_forward: [BasicSR](https://github.com/xinntao/BasicSR)
 
 ---
 

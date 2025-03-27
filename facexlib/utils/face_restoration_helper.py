@@ -156,7 +156,7 @@ class FaceRestoreHelper(object):
         with torch.no_grad():
             bboxes = self.face_det.detect_faces(input_img, 0.97) * scale
         
-        if bbox is not None:
+        if bbox is not None and len(bboxes) > 1:
             bboxes = bboxes[np.argmax(box_iou(bboxes, bbox))][None]
 
         n_faces = 0
