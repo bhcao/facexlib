@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from PIL import Image
 
 
 def visualize_alignment(img, landmarks, save_path=None, to_bgr=False):
@@ -16,3 +17,6 @@ def visualize_alignment(img, landmarks, save_path=None, to_bgr=False):
     # save img
     if save_path is not None:
         cv2.imwrite(save_path, img)
+
+    # for display
+    return Image.fromarray(img)

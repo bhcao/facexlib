@@ -16,7 +16,7 @@
 仅提供 PyTorch 参考代码。有关训练或微调，请参考下面列出的原始代码库。<br>
 请注意，我们仅提供这些算法的集合。对于您的预期用途，请参考它们的原始许可证。
 
-我们支持了 [Insighface](https://github.com/deepinsight/insightface) 的检测和识别模型 `antelopev2` 以及 `buffalo_l`（相同模型，误差可忽略），无需安装任何 onnx 运行时。对于由于 glib、python 或 CUDA 版本的问题而无法或不愿意安装 onnx 运行时的用户，我们建议使用我们的存储库。欢迎 :heart_eyes:
+我们支持了 [Insighface](https://github.com/deepinsight/insightface) 的检测和识别模型 `antelopev2` 以及 `buffalo_l`（相同模型，误差可忽略），无需安装任何 onnx 运行时。对于由于 glib、python 或 CUDA 版本的问题而无法或不愿意安装 onnx 运行时的用户，我们建议使用我们的存储库。从 Insightface 迁移到 facexlib，请见 [迁移教程](tutorial/migrate_from_insightface.ipynb)。:heart_eyes:
 
 如果 facexlib 对您的项目有所帮助，请帮助 :star: 这个仓库。谢谢 :blush:<br>
 
@@ -56,7 +56,9 @@ pip install git+https://github.com/bhcao/facexlib.git
 
 ### 预训练模型
 
-在第一次推理时会**自动**下载预训练模型。<br> 如果您网络不稳定，可以提前下载（可以使用其他下载工具），并将它们放在文件夹 `PACKAGE_ROOT_PATH/facexlib/weights` 中。
+如果您网络不稳定，可以提前下载（可以使用其他下载工具），并将它们放在文件夹 `PACKAGE_ROOT_PATH/facexlib/weights` 中。`PACKAGE_ROOT_PATH` 默认为 `facexlib` 的安装路径，你也可以在每个模型初始化时通过传递参数 `model_rootpath` 来改变它。
+
+如果您的网络稳定，您可以将环境变量 `BLOCK_DOWNLOADING` 设置为 `false`，以在第一次推理时自动下载预训练模型。
 
 ## :scroll: 许可证和致谢
 

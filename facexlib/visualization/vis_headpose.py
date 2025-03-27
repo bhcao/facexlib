@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from math import cos, sin
+from PIL import Image
 
 
 def draw_axis(img, yaw, pitch, roll, tdx=None, tdy=None, size=100):
@@ -89,3 +90,6 @@ def visualize_headpose(img, yaw, pitch, roll, save_path=None, to_bgr=False):
     # save img
     if save_path is not None:
         cv2.imwrite(save_path, img)
+
+    # for display
+    return Image.fromarray(img)
