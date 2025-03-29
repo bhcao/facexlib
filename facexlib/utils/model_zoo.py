@@ -10,7 +10,7 @@ MODEL_ZOO = {
     'retinaface_resnet50': 'https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth',
     'retinaface_mobile0.25': 'https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_mobilenet0.25_Final.pth',
     'insight_retina': 'https://github.com/bhcao/facexlib/releases/download/v0.3.2/insight_retina.pth',
-    'yolov8x_person_face': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/yolov8x_person_face.pt',
+    'yolov8x_person_face': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/yolov8x_person_face.pth',
     'volo_d1': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/model_utk_age_gender_4.23_97.69.pth.tar',
     'mivolo_d1': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/model_imdb_cross_person_4.22_99.46.pth.tar',
     'hopenet': 'https://github.com/xinntao/facexlib/releases/download/v0.2.0/headpose_hopenet.pth',

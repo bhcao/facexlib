@@ -1,6 +1,5 @@
 import math
 import os
-from copy import deepcopy
 from typing import Dict, List, Optional, Tuple
 
 import cv2
@@ -8,9 +7,7 @@ import numpy as np
 import torch
 from facexlib.genderage.misc import aggregate_votes_winsorized, assign_faces
 from facexlib.utils.misc import box_iou
-
-from ultralytics.engine.results import Results
-from ultralytics.utils.plotting import Annotator, colors
+from facexlib.detection.yolo_results import Results
 
 # because of ultralytics bug it is important to unset CUBLAS_WORKSPACE_CONFIG after the module importing
 os.unsetenv("CUBLAS_WORKSPACE_CONFIG")
@@ -172,84 +169,6 @@ class PersonAndFaceResult:
         center_x, center_y = (x1 + x2) / 2, (y1 + y2) / 2
         dist = math.dist([center_x, center_y], [im_w / 2, im_h / 2])
         return dist
-
-    def plot(
-        self,
-        conf=False,
-        line_width=None,
-        font_size=None,
-        font="Arial.ttf",
-        pil=False,
-        img=None,
-        labels=True,
-        boxes=True,
-        probs=True,
-        ages=True,
-        genders=True,
-        gender_probs=False,
-    ):
-        """
-        Plots the detection results on an input RGB image. Accepts a numpy array (cv2) or a PIL Image.
-        Args:
-            conf (bool): Whether to plot the detection confidence score.
-            line_width (float, optional): The line width of the bounding boxes. If None, it is scaled to the image size.
-            font_size (float, optional): The font size of the text. If None, it is scaled to the image size.
-            font (str): The font to use for the text.
-            pil (bool): Whether to return the image as a PIL Image.
-            img (numpy.ndarray): Plot to another image. if not, plot to original image.
-            labels (bool): Whether to plot the label of bounding boxes.
-            boxes (bool): Whether to plot the bounding boxes.
-            probs (bool): Whether to plot classification probability
-            ages (bool): Whether to plot the age of bounding boxes.
-            genders (bool): Whether to plot the genders of bounding boxes.
-            gender_probs (bool): Whether to plot gender classification probability
-        Returns:
-            (numpy.ndarray): A numpy array of the annotated image.
-        """
-
-        # return self.yolo_results.plot()
-        colors_by_ind = {}
-        for face_ind, person_ind in self.face_to_person_map.items():
-            if person_ind is not None:
-                colors_by_ind[face_ind] = face_ind + 2
-                colors_by_ind[person_ind] = face_ind + 2
-            else:
-                colors_by_ind[face_ind] = 0
-        for person_ind in self.unassigned_persons_inds:
-            colors_by_ind[person_ind] = 1
-
-        names = self.yolo_results.names
-        annotator = Annotator(
-            deepcopy(self.yolo_results.orig_img if img is None else img),
-            line_width,
-            font_size,
-            font,
-            pil,
-            example=names,
-        )
-        pred_boxes, show_boxes = self.yolo_results.boxes, boxes
-        pred_probs, show_probs = self.yolo_results.probs, probs
-
-        if pred_boxes and show_boxes:
-            for bb_ind, (d, age, gender, gender_score) in enumerate(
-                zip(pred_boxes, self.ages, self.genders, self.gender_scores)
-            ):
-                c, conf, guid = int(d.cls), float(d.conf) if conf else None, None if d.id is None else int(d.id.item())
-                name = ("" if guid is None else f"id:{guid} ") + names[c]
-                label = (f"{name} {conf:.2f}" if conf else name) if labels else None
-                if ages and age is not None:
-                    label += f" {age:.1f}"
-                if genders and gender is not None:
-                    label += f" {'F' if gender == 'female' else 'M'}"
-                if gender_probs and gender_score is not None:
-                    label += f" ({gender_score:.1f})"
-                annotator.box_label(d.xyxy.squeeze(), label, color=colors(colors_by_ind[bb_ind], True))
-
-        if pred_probs is not None and show_probs:
-            text = f"{', '.join(f'{names[j] if names else j} {pred_probs.data[j]:.2f}' for j in pred_probs.top5)}, "
-            annotator.text((32, 32), text, txt_color=(255, 255, 255))  # TODO: allow setting colors
-
-        return annotator.result()
 
     def set_tracked_age_gender(self, tracked_objects: Dict[int, List[AGE_GENDER_TYPE]]):
         """

@@ -45,7 +45,7 @@
 ## :wrench: 依赖和安装
 
 - Python >= 3.7 （推荐使用 [Anaconda](https://www.anaconda.com/download/#linux) 或 [Miniforge (mamba)](https://github.com/conda-forge/miniforge)）
-- [PyTorch >= 1.7](https://pytorch.org/)
+- [PyTorch >= 1.10](https://pytorch.org/)
 - 可选：NVIDIA GPU + [CUDA](https://developer.nvidia.com/cuda-downloads)
 
 ### 安装

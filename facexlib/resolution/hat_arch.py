@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 
-from timm.models.layers import DropPath, trunc_normal_, to_2tuple
+from timm.layers import DropPath, trunc_normal_, to_2tuple
 
 class ChannelAttention(nn.Module):
     """Channel attention used in RCAN.

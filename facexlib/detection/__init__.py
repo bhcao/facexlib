@@ -3,7 +3,7 @@ from copy import deepcopy
 
 from facexlib.utils import load_file_from_url
 from .retinaface import RetinaFace
-from .yolo_wrapper import YOLOWrapper
+from .yolo_model import YOLODetectionModel
 from .insight_retina import InsightRetina
 
 
@@ -17,13 +17,12 @@ def init_detection_model(model_name, half=False, device=None, model_rootpath=Non
         model = RetinaFace(network_name='mobile0.25', half=half, device=device)
     elif model_name == 'insight_retina':
         model = InsightRetina()
-    elif model_name != 'yolov8x_person_face':
+    elif model_name == 'yolov8x_person_face':
+        model = YOLODetectionModel(half=half, device=device, names={0: 'person', 1: 'face'})
+    else:
         raise NotImplementedError(f'{model_name} is not implemented.')
 
     model_path = load_file_from_url(model_name, save_dir=model_rootpath)
-    
-    if model_name == 'yolov8x_person_face':
-        return YOLOWrapper(model_path, half=half, device=device)
 
     # TODO: clean pretrained model
     load_net = torch.load(model_path, map_location=lambda storage, loc: storage)
@@ -35,4 +34,8 @@ def init_detection_model(model_name, half=False, device=None, model_rootpath=Non
     model.load_state_dict(load_net, strict=True)
     model.eval()
     model = model.to(device)
+
+    # Fuse model for faster inference
+    if model_name == 'yolov8x_person_face':
+        model.fuse()
     return model
