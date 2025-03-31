@@ -1,3 +1,4 @@
+import warnings
 import cv2
 import numpy as np
 import torch
@@ -10,6 +11,7 @@ from facexlib.detection.align_trans import get_reference_facial_points, warp_and
 from facexlib.detection.retinaface_net import FPN, SSH, MobileNetV1, make_bbox_head, make_class_head, make_landmark_head
 from facexlib.detection.retinaface_utils import (PriorBox, batched_decode, batched_decode_landm, decode, decode_landm,
                                                  py_cpu_nms)
+from facexlib.utils.image_dto import ImageDTO
 
 
 def generate_config(network_name):
@@ -81,9 +83,9 @@ class RetinaFace(nn.Module):
         self.model_name = f'retinaface_{network_name}'
         self.cfg = cfg
         self.phase = phase
-        self.target_size, self.max_size = 1600, 2150
+        self.target_size = 1600
         self.resize, self.scale, self.scale1 = 1., None, None
-        self.mean_tensor = torch.tensor([[[[104.]], [[117.]], [[123.]]]], device=self.device)
+        self.mean_tensor = (104., 117., 123.)
         self.reference = get_reference_facial_points(default_square=True)
         # Build network.
         backbone = None
@@ -161,33 +163,6 @@ class RetinaFace(nn.Module):
 
         return loc, conf, landmarks, priors
 
-    # single image detection
-    def transform(self, image, use_origin_size):
-        # convert to opencv format
-        if isinstance(image, Image.Image):
-            image = cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
-        image = image.astype(np.float32)
-
-        # testing scale
-        im_size_min = np.min(image.shape[0:2])
-        im_size_max = np.max(image.shape[0:2])
-        resize = float(self.target_size) / float(im_size_min)
-
-        # prevent bigger axis from being more than max_size
-        if np.round(resize * im_size_max) > self.max_size:
-            resize = float(self.max_size) / float(im_size_max)
-        resize = 1 if use_origin_size else resize
-
-        # resize
-        if resize != 1:
-            image = cv2.resize(image, None, None, fx=resize, fy=resize, interpolation=cv2.INTER_LINEAR)
-
-        # convert to torch.tensor format
-        # image -= (104, 117, 123)
-        image = image.transpose(2, 0, 1)
-        image = torch.from_numpy(image).unsqueeze(0)
-
-        return image, resize
 
     def detect_faces(
         self,
@@ -196,11 +171,20 @@ class RetinaFace(nn.Module):
         nms_threshold=0.4,
         use_origin_size=True,
     ):
-        image, self.resize = self.transform(image, use_origin_size)
-        image = image.to(self.device)
-        if self.half_inference:
-            image = image.half()
-        image = image - self.mean_tensor
+        if not use_origin_size:
+            warnings.warn("The method of resizing has been changed to letterbox.")
+
+        imagedto = ImageDTO(image)
+        image = imagedto.to_tensor(
+            size=None if use_origin_size else self.target_size,
+            keep_ratio=True,
+            rgb2bgr=True,
+            mean=self.mean_tensor,
+            to_01=False,
+            device=self.device,
+            dtype=torch.half if self.half_inference else torch.float32,
+        )
+        self.resize = imagedto.last_scale[0]
 
         loc, conf, landmarks, priors = self.__detect_faces(image)
 

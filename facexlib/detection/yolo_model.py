@@ -11,6 +11,7 @@ import contextlib
 from copy import deepcopy
 
 from facexlib.genderage.structures import PersonAndFaceResult
+from facexlib.utils.image_dto import ImageDTO
 from facexlib.utils.misc import get_root_logger
 
 from .yolo_blocks import (
@@ -27,12 +28,10 @@ from . import yolo_ops as ops
 from .yolo_results import Results
 
 from .yolo_utils import (
-    LetterBox,
     fuse_conv_and_bn,
     make_divisible,
     check_imgsz,
     initialize_weights,
-    load_inference_source,
     DEFAULT_CFG_DICT
 )
 
@@ -207,13 +206,6 @@ class YOLODetectionModel(torch.nn.Module):
         __import__("os").environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"  # to avoid deterministic warnings
         
         self.yaml = yaml_cfg  # cfg dict
-        if self.yaml["backbone"][0][2] == "Silence":
-            get_root_logger().warning(
-                "WARNING ⚠️ YOLOv9 `Silence` module is deprecated in favor of torch.nn.Identity. "
-                "Please delete local *.pt file and re-download the latest model checkpoint."
-            )
-            self.yaml["backbone"][0][2] = "nn.Identity"
-
         # Define model
         ch = self.yaml["ch"] = self.yaml.get("ch", ch)  # input channels
         if nc and nc != self.yaml["nc"]:
@@ -270,11 +262,7 @@ class YOLODetectionModel(torch.nn.Module):
 
         # Usable if setup is done
         self.imgsz = None
-        self.dataset = None
         self.plotted_img = None
-        self.seen = 0
-        self.windows = []
-        self.batch = None
         self.txt_path = None
         self._lock = threading.Lock()  # for automatic thread-safe inference
 
@@ -322,34 +310,6 @@ class YOLODetectionModel(torch.nn.Module):
 
         return self
 
-
-    def preprocess(self, im):
-        not_tensor = not isinstance(im, torch.Tensor)
-        if not_tensor:
-            im = np.stack(self.pre_transform(im))
-            im = im[..., ::-1].transpose((0, 3, 1, 2))  # BGR to RGB, BHWC to BCHW, (n, 3, h, w)
-            im = np.ascontiguousarray(im)  # contiguous
-            im = torch.from_numpy(im)
-
-        im = im.to(self.device)
-        im = im.half() if self.fp16 else im.float()  # uint8 to fp16/32
-        if not_tensor:
-            im /= 255  # 0 - 255 to 0.0 - 1.0
-        return im
-
-    def pre_transform(self, im):
-        same_shapes = len({x.shape for x in im}) == 1
-        letterbox = LetterBox(
-            self.imgsz,
-            auto=same_shapes,
-            stride=self.stride,
-        )
-        return [letterbox(image=x) for x in im]
-
-    def setup_source(self, source):
-        self.imgsz = check_imgsz(self.args["imgsz"], stride=self.stride, min_dim=2)  # check image size
-        self.dataset = load_inference_source(source)
-
     @torch.no_grad()
     def predict(
         self,
@@ -362,7 +322,9 @@ class YOLODetectionModel(torch.nn.Module):
         """Streams real-time inference on camera feed and saves results to file."""
         with self._lock:  # for thread-safe inference
             # Setup source every time predict is called
-            self.setup_source(source)
+            self.imgsz = check_imgsz(self.args["imgsz"], stride=self.stride, min_dim=2)  # check image size
+            if not isinstance(source, (list, tuple)):
+                source = [source]
 
             # Warmup model
             if not self.done_warmup:
@@ -371,12 +333,17 @@ class YOLODetectionModel(torch.nn.Module):
                     self.forward(im)  # warmup
                 self.done_warmup = True
 
-            self.seen, self.windows, self.batch = 0, [], None
-            self.batch = self.dataset.__iter__().__next__()  # load first batch
-            paths, im0s, s = self.batch
-
             # Preprocess
-            im = self.preprocess(im0s)
+            im0s = [ImageDTO(i) for i in source]
+            same_shape = len({x.image.shape for x in im0s}) == 1
+            im = torch.cat([i.to_tensor(
+                size=self.imgsz,
+                keep_ratio=True,
+                fill=114,
+                stride=32 if same_shape else None,
+                device=self.device,
+                dtype=torch.half if self.fp16 else torch.float,
+            ) for i in im0s])
 
             # Inference
             preds = self.forward(im, **kwargs)
@@ -392,16 +359,10 @@ class YOLODetectionModel(torch.nn.Module):
                 end2end=getattr(self, "end2end", False),
             )
 
-            if not isinstance(im0s, list):  # input images are a torch.Tensor, not a list
-                im0s = ops.convert_torch2numpy_batch(im0s)
-
             results = []
             for pred, orig_img in zip(preds, im0s):
-                pred[:, :4] = ops.scale_boxes(im.shape[2:], pred[:, :4], orig_img.shape)
-                results.append(Results(orig_img, names=self.names, boxes=pred[:, :6]))
-
-            # Visualize, save, write results
-            self.seen += len(im0s)
+                pred[:, :4] = ops.scale_boxes(im.shape[2:], pred[:, :4], orig_img.image.shape)
+                results.append(Results(orig_img.image, names=self.names, boxes=pred[:, :6]))
 
         return results
 

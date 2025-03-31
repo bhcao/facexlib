@@ -9,10 +9,6 @@ from tqdm import tqdm
 from facexlib.detection import init_detection_model
 from facexlib.tracking.sort import SORT
 
-# If you get the error "Error #15: Initializing libiomp5md.dll, but found libiomp5md.dll already initialized.", 
-# add the following line:
-# os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-
 def main(args):
     detect_interval = args.detect_interval
     margin = args.margin

@@ -2,11 +2,10 @@ import cv2
 import numpy as np
 import os
 import torch
-from torchvision.transforms.functional import normalize
 
 from facexlib.detection import init_detection_model
 from facexlib.parsing import init_parsing_model
-from facexlib.utils.misc import img2tensor, imwrite, box_iou
+from facexlib.utils.misc import imwrite, box_iou
 
 
 def get_largest_face(det_faces, h, w):
@@ -58,7 +57,8 @@ class FaceRestoreHelper(object):
                  pad_blur=False,
                  use_parse=False,
                  device=None,
-                 model_rootpath=None):
+                 model_rootpath=None,
+                 parse_model='parsenet'):
         self.template_3points = template_3points  # improve robustness
         self.upscale_factor = upscale_factor
         # the cropped face ratio based on the square face
@@ -101,7 +101,7 @@ class FaceRestoreHelper(object):
         # init face parsing model
         self.use_parse = use_parse
         if self.use_parse:
-            self.face_parse = init_parsing_model(model_name='parsenet', device=self.device, model_rootpath=model_rootpath)
+            self.face_parse = init_parsing_model(model_name=parse_model, device=self.device, model_rootpath=model_rootpath)
         else:
             self.face_parse = None
 
@@ -328,12 +328,8 @@ class FaceRestoreHelper(object):
 
             if self.use_parse:
                 # inference
-                face_input = cv2.resize(restored_face, (512, 512), interpolation=cv2.INTER_LINEAR)
-                face_input = img2tensor(face_input.astype('float32') / 255., bgr2rgb=True, float32=True)
-                normalize(face_input, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True)
-                face_input = torch.unsqueeze(face_input, 0).to(self.device)
                 with torch.no_grad():
-                    out = self.face_parse(face_input)[0]
+                    out = self.face_parse.parse(restored_face)[0]
                 out = out.argmax(dim=1).squeeze().cpu().numpy()
 
                 mask = np.zeros(out.shape)

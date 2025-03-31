@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from facexlib.utils.image_dto import ImageDTO
+
 from .resnet import ResNet18
 
 
@@ -138,3 +140,9 @@ class BiSeNet(nn.Module):
             return out, out16, out32, feat, feat16, feat32
         else:
             return out, out16, out32
+
+    def parse(self, x):
+        x = ImageDTO(x).to_tensor(
+            size=(512, 512), mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), device=next(self.parameters()).device
+        )
+        return self.forward(x)

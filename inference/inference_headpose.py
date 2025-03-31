@@ -1,12 +1,10 @@
 import argparse
 import cv2
-import numpy as np
 import torch
-from torchvision.transforms.functional import normalize
 
 from facexlib.detection import init_detection_model
 from facexlib.headpose import init_headpose_model
-from facexlib.utils.misc import img2tensor
+from facexlib.utils.image_dto import ImageDTO
 from facexlib.visualization import visualize_headpose
 
 
@@ -28,15 +26,12 @@ def main(args):
         left = max(bbox[0] - thld, 0)
         right = min(bbox[2] + thld, w)
 
-        det_face = img[top:bottom, left:right, :].astype(np.float32) / 255.
-
-        # resize
-        det_face = cv2.resize(det_face, (224, 224), interpolation=cv2.INTER_LINEAR)
-        det_face = img2tensor(np.copy(det_face), bgr2rgb=False)
-
-        # normalize
-        normalize(det_face, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225], inplace=True)
-        det_face = det_face.unsqueeze(0).cuda()
+        det_face = img[top:bottom, left:right, :]
+        
+        det_face = ImageDTO(det_face).to_tensor(
+            size=(224, 224), mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], rgb2bgr=True,
+            device=next(headpose_net.parameters()).device
+        )
 
         yaw, pitch, roll = headpose_net(det_face)
         visualize_headpose(img, yaw, pitch, roll, args.save_path)

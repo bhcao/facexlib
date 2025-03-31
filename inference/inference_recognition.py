@@ -26,7 +26,6 @@ def main(args):
 
         output = recog_net.get_feat([img1_crop, img2_crop])
 
-    print(output.size())
     output = output.data.cpu().numpy()
 
     dist = calculate_sim(output[0], output[1])

@@ -7,7 +7,7 @@ from PIL import Image
 
 from facexlib.resolution.hat_arch import HAT
 from facexlib.resolution.sr_model import SRModel
-from facexlib.utils.misc import tensor2img, img2tensor
+from facexlib.utils.image_dto import ImageDTO
 
 NETWORK_G_CONFIG = {
     'HAT-L': {
@@ -169,16 +169,7 @@ class HATModel(SRModel):
         self.output = self.output[:, :, 0:h - self.mod_pad_h * self.scale, 0:w - self.mod_pad_w * self.scale]
 
     def inference(self, image: np.ndarray | Image.Image):
-        if isinstance(image, Image.Image):
-            image = np.array(image.convert('RGB'))
-        
-        if image.dtype == np.uint8:
-            image = image.astype(np.float32) / 255.
-
-        # HWC to CHW, numpy to tensor
-        self.lq = img2tensor(image, bgr2rgb=False, float32=True).to(
-            device=self.device, dtype=self.dtype
-        ).unsqueeze(0)
+        self.lq = ImageDTO(image).to_tensor(device=self.device, dtype=self.dtype)
 
         self.pre_process()
         if self.tile_size is not None and self.tile_pad is not None:
@@ -194,4 +185,4 @@ class HATModel(SRModel):
         del self.output
         torch.cuda.empty_cache()
 
-        return tensor2img([visuals['result']])
+        return ImageDTO(visuals['result'], min_max=(0, 1)).image

@@ -4,6 +4,8 @@ import numpy as np
 import torch.nn as nn
 from torch.nn import functional as F
 
+from facexlib.utils.image_dto import ImageDTO
+
 
 class NormLayer(nn.Module):
     """Normalization Layers.
@@ -192,3 +194,9 @@ class ParseNet(nn.Module):
         out_img = self.out_img_conv(x)
         out_mask = self.out_mask_conv(x)
         return out_mask, out_img
+    
+    def parse(self, x):
+        x = ImageDTO(x).to_tensor(
+            size=(512, 512), mean=0.5, std=0.5, device=next(self.parameters()).device
+        )
+        return self.forward(x)

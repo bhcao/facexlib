@@ -2,7 +2,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 import numpy as np
-import cv2
+
+from facexlib.utils.image_dto import ImageDTO
 
 def softmax(z):
     assert len(z.shape) == 2
@@ -233,14 +234,10 @@ class InsightRetina(nn.Module):
         scores_list = []
         bboxes_list = []
         kpss_list = []
-        input_size = tuple(img.shape[0:2][::-1])
-        blob = cv2.dnn.blobFromImage(img, 1.0/self.input_std, input_size, (self.input_mean, self.input_mean, self.input_mean), swapRB=True)
+        net_outs = self.forward(img)
 
-        blob = torch.from_numpy(blob).to(next(self.parameters()).device, next(self.parameters()).dtype)
-        net_outs = self.forward(blob)
-
-        input_height = blob.shape[2]
-        input_width = blob.shape[3]
+        input_height = img.shape[2]
+        input_width = img.shape[3]
         fmc = self.fmc
         for idx, stride in enumerate(self._feat_stride_fpn):
             scores = net_outs[idx].cpu().numpy()
@@ -278,21 +275,13 @@ class InsightRetina(nn.Module):
 
     # insightface detect
     def detect_faces(self, img, threshold=0.5, max_num=0, metric='default'):
-        
-        input_size = self.input_size
-            
-        im_ratio = float(img.shape[0]) / img.shape[1]
-        model_ratio = float(input_size[1]) / input_size[0]
-        if im_ratio>model_ratio:
-            new_height = input_size[1]
-            new_width = int(new_height / im_ratio)
-        else:
-            new_width = input_size[0]
-            new_height = int(new_width * im_ratio)
-        det_scale = float(new_height) / img.shape[0]
-        resized_img = cv2.resize(img, (new_width, new_height))
-        det_img = np.zeros( (input_size[1], input_size[0], 3), dtype=np.uint8 )
-        det_img[:new_height, :new_width, :] = resized_img
+
+        img = ImageDTO(img)
+        det_img = img.to_tensor(
+            size=self.input_size, keep_ratio=True, center=False, fill=0, mean=self.input_mean, std=self.input_std,
+            to_01=False, device=next(self.parameters()).device, dtype=next(self.parameters()).dtype
+        )
+        det_scale = img.last_scale[1]
 
         scores_list, bboxes_list, kpss_list = self.detect(det_img, threshold)
 
@@ -314,7 +303,7 @@ class InsightRetina(nn.Module):
         if max_num > 0 and det.shape[0] > max_num:
             area = (det[:, 2] - det[:, 0]) * (det[:, 3] -
                                                     det[:, 1])
-            img_center = img.shape[0] // 2, img.shape[1] // 2
+            img_center = img.image.shape[0] // 2, img.image.shape[1] // 2
             offsets = np.vstack([
                 (det[:, 0] + det[:, 2]) / 2 - img_center[1],
                 (det[:, 1] + det[:, 3]) / 2 - img_center[0]

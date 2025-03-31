@@ -2,28 +2,16 @@ import argparse
 import cv2
 import numpy as np
 import torch.nn.functional as F
-from torchvision.transforms.functional import normalize
 
 from facexlib.matting import init_matting_model
-from facexlib.utils import img2tensor
+from facexlib.utils.image_dto import ImageDTO
 
 
 def main(args):
     modnet = init_matting_model()
 
-    # read image
-    img = cv2.imread(args.img_path) / 255.
-    # unify image channels to 3
-    if len(img.shape) == 2:
-        img = img[:, :, None]
-    if img.shape[2] == 1:
-        img = np.repeat(img, 3, axis=2)
-    elif img.shape[2] == 4:
-        img = img[:, :, 0:3]
-
-    img_t = img2tensor(img, bgr2rgb=True, float32=True)
-    normalize(img_t, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True)
-    img_t = img_t.unsqueeze(0).cuda()
+    img = ImageDTO(args.img_path)
+    img_t = img.to_tensor(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5), device=next(modnet.parameters()).device)
 
     # resize image for input
     _, _, im_h, im_w = img_t.shape
@@ -52,7 +40,7 @@ def main(args):
 
     # get foreground
     matte = matte[:, :, None]
-    foreground = img * matte + np.full(img.shape, 1) * (1 - matte)
+    foreground = img.image * matte + np.full(img.image.shape, 1) * (1 - matte)
     cv2.imwrite(args.save_path.replace('.png', '_fg.png'), foreground * 255)
 
 

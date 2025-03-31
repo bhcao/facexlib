@@ -9,7 +9,8 @@ import numpy as np
 import torch
 from PIL import Image
 
-from facexlib.utils.misc import get_root_logger, img2tensor, tensor2img
+from facexlib.utils.image_dto import ImageDTO
+from facexlib.utils.misc import get_root_logger
 
 class SRModel:
     """Base SR model for single image super-resolution."""
@@ -117,16 +118,7 @@ class SRModel:
             self.net_g.train()
     
     def inference(self, image: np.ndarray | Image.Image):
-        if isinstance(image, Image.Image):
-            image = np.array(image.convert('RGB'))
-        
-        if image.dtype == np.uint8:
-            image = image.astype(np.float32) / 255.
-        
-        # HWC to CHW, numpy to tensor
-        self.lq = img2tensor(image, bgr2rgb=False, float32=True).to(
-            device=self.device, dtype=self.dtype
-        ).unsqueeze(0)
+        self.lq = ImageDTO(image).to_tensor(device=self.device, dtype=self.dtype)
         self.test()
 
         visuals = self.get_current_visuals()
@@ -136,7 +128,7 @@ class SRModel:
         del self.output
         torch.cuda.empty_cache()
     
-        return tensor2img([visuals['result']])
+        return ImageDTO(visuals['result'], min_max=(0, 1)).image
 
 
     def get_current_visuals(self):
