@@ -336,14 +336,10 @@ class YOLODetectionModel(torch.nn.Module):
             # Preprocess
             im0s = [ImageDTO(i) for i in source]
             same_shape = len({x.image.shape for x in im0s}) == 1
-            im = torch.cat([i.to_tensor(
-                size=self.imgsz,
-                keep_ratio=True,
-                fill=114,
-                stride=32 if same_shape else None,
-                device=self.device,
-                dtype=torch.half if self.fp16 else torch.float,
-            ) for i in im0s])
+            im_re = [x.resize(self.imgsz, keep_ratio=True).pad(
+                None if same_shape else self.imgsz, stride=32 if same_shape else None
+            ) for x in im0s]
+            im = torch.cat([i.to_tensor().to(device=self.device, dtype=torch.half if self.fp16 else torch.float) for i in im_re])
 
             # Inference
             preds = self.forward(im, **kwargs)
@@ -360,8 +356,8 @@ class YOLODetectionModel(torch.nn.Module):
             )
 
             results = []
-            for pred, orig_img in zip(preds, im0s):
-                pred[:, :4] = ops.scale_boxes(im.shape[2:], pred[:, :4], orig_img.image.shape)
+            for pred, orig_img, resized_img in zip(preds, im0s, im_re):
+                pred[:, :4] = resized_img.restore_keypoints(pred[:, :4])
                 results.append(Results(orig_img.image, names=self.names, boxes=pred[:, :6]))
 
         return results

@@ -118,7 +118,7 @@ class SRModel:
             self.net_g.train()
     
     def inference(self, image: np.ndarray | Image.Image):
-        self.lq = ImageDTO(image).to_tensor(device=self.device, dtype=self.dtype)
+        self.lq = ImageDTO(image).to_tensor().to(device=self.device, dtype=self.dtype)
         self.test()
 
         visuals = self.get_current_visuals()

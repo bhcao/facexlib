@@ -21,7 +21,7 @@ def fuse_conv_and_bn(conv, bn):
             bias=True,
         )
         .requires_grad_(False)
-        .to(conv.weight.device)
+        .to(conv.weight.device, conv.weight.dtype)
     )
 
     # Prepare filters
@@ -30,7 +30,8 @@ def fuse_conv_and_bn(conv, bn):
     fusedconv.weight.copy_(torch.mm(w_bn, w_conv).view(fusedconv.weight.shape))
 
     # Prepare spatial bias
-    b_conv = torch.zeros(conv.weight.shape[0], device=conv.weight.device) if conv.bias is None else conv.bias
+    b_conv = torch.zeros(conv.weight.shape[0], device=conv.weight.device,
+                         dtype=conv.weight.dtype) if conv.bias is None else conv.bias
     b_bn = bn.bias - bn.weight.mul(bn.running_mean).div(torch.sqrt(bn.running_var + bn.eps))
     fusedconv.bias.copy_(torch.mm(w_bn, b_conv.reshape(-1, 1)).reshape(-1) + b_bn)
 

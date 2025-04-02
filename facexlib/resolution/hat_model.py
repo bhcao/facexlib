@@ -169,7 +169,7 @@ class HATModel(SRModel):
         self.output = self.output[:, :, 0:h - self.mod_pad_h * self.scale, 0:w - self.mod_pad_w * self.scale]
 
     def inference(self, image: np.ndarray | Image.Image):
-        self.lq = ImageDTO(image).to_tensor(device=self.device, dtype=self.dtype)
+        self.lq = ImageDTO(image).to_tensor().to(device=self.device, dtype=self.dtype)
 
         self.pre_process()
         if self.tile_size is not None and self.tile_pad is not None:

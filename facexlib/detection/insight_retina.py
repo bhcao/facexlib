@@ -277,20 +277,19 @@ class InsightRetina(nn.Module):
     def detect_faces(self, img, threshold=0.5, max_num=0, metric='default'):
 
         img = ImageDTO(img)
-        det_img = img.to_tensor(
-            size=self.input_size, keep_ratio=True, center=False, fill=0, mean=self.input_mean, std=self.input_std,
-            to_01=False, device=next(self.parameters()).device, dtype=next(self.parameters()).dtype
+        resized_img = img.resize(self.input_size, keep_ratio=True).pad(self.input_size, center=False, fill=0)
+        det_img = resized_img.to_tensor(mean=self.input_mean, std=self.input_std, to_01=False).to(
+            device=next(self.parameters()).device, dtype=next(self.parameters()).dtype
         )
-        det_scale = img.last_scale[1]
 
         scores_list, bboxes_list, kpss_list = self.detect(det_img, threshold)
 
         scores = np.vstack(scores_list)
         scores_ravel = scores.ravel()
         order = scores_ravel.argsort()[::-1]
-        bboxes = np.vstack(bboxes_list) / det_scale
+        bboxes = resized_img.restore_keypoints(np.vstack(bboxes_list))
         if self.use_kps:
-            kpss = np.vstack(kpss_list) / det_scale
+            kpss = resized_img.restore_keypoints(np.vstack(kpss_list))
         pre_det = np.hstack((bboxes, scores)).astype(np.float32, copy=False)
         pre_det = pre_det[order, :]
         keep = self.nms(pre_det)

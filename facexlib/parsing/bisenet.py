@@ -142,7 +142,7 @@ class BiSeNet(nn.Module):
             return out, out16, out32
 
     def parse(self, x):
-        x = ImageDTO(x).to_tensor(
-            size=(512, 512), mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), device=next(self.parameters()).device
-        )
+        x = ImageDTO(x).resize((512, 512)).to_tensor(
+            mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)
+        ).to(device=next(self.parameters()).device)
         return self.forward(x)

@@ -4,10 +4,9 @@ import cv2
 import numpy as np
 from pathlib import Path
 import torch
-import torch.nn.functional as F
-import torchvision.transforms.functional as TF
+import torchvision.transforms.functional as F
 
-from timm.layers import to_2tuple, to_3tuple
+from timm.layers import to_2tuple
 
 class ImageDTO:
     def __init__(self, image: Union[Image.Image, np.ndarray, str, Path, torch.Tensor, "ImageDTO"],
@@ -24,8 +23,8 @@ class ImageDTO:
                 torch.Tensor.
             keep_tensor (bool, optional): Whether to keep the input tensor for gradient calculation.
         """
-        self.tensor = None
-        self.last_scale = (1, 1)
+        if image is None:
+            return
 
         if isinstance(image, Image.Image):
             self.image = np.array(image.convert('RGB'))
@@ -52,48 +51,151 @@ class ImageDTO:
 
             # the kept tensor is in BGR format and in range [-1, 1]
             if keep_tensor:
-                self.tensor = tensor[::-1, :, :] if bgr2rgb else tensor
+                self.image = tensor[[2, 1, 0], :, :] if bgr2rgb else tensor
+            else:
+                # CHW -> HWC
+                image = tensor.detach().cpu().numpy().transpose(1, 2, 0)
+                if bgr2rgb:
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                # Change type to uint8
+                self.image = ((image + 1.0) * 127.5).round().astype(np.uint8)
 
-            # CHW -> HWC
-            image = tensor.detach().cpu().numpy().transpose(1, 2, 0)
-            if bgr2rgb:
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            # Change type to uint8
-            self.image = ((image + 1.0) * 127.5).round().astype(np.uint8)
         elif isinstance(image, ImageDTO):
-            self.image = image.image
-            self.last_scale = image.last_scale
-            self.tensor = image.tensor
+            self.scale = image.scale
+            self.left_top = image.left_top
+            self.orig_shape = image.orig_shape
+
+            # convert tensor to numpy array
+            if isinstance(image.image, torch.Tensor) and not keep_tensor:
+                image = image.image.detach().cpu().numpy().transpose(1, 2, 0)
+                self.image = ((image + 1.0) * 127.5).round().astype(np.uint8)
+            else:
+                self.image = image.image
+            return
         else:
             raise TypeError(f'Unsupported image type: {type(image)}')
 
+        # scale first, padding later
+        self.scale = (1.0, 1.0)
+        self.left_top = (0.0, 0.0)
+        if isinstance(self.image, torch.Tensor):
+            self.orig_shape = tuple(self.image.shape[1:][::-1])
+        else:
+            self.orig_shape = tuple(self.image.shape[:2][::-1])
 
-    def to_tensor(self, size=None, keep_ratio=False, center=True, fill=114, stride=None, rgb2bgr=False, mean=None,
-                  std=None, to_01=True, device=None, dtype=None) -> torch.Tensor:
+
+    def resize(self, new_shape: tuple, keep_ratio=False, align_shorter_edge=False, max_size=None) -> "ImageDTO":
+        """
+        Resize the image to a specified shape.
+
+        Args:
+            new_shape (tuple): The target shape (width, height) for resizing.
+            keep_ratio (bool): Whether to keep the aspect ratio of the image.
+            align_shorter_edge (bool): Whether to align the shorter edge to the target shape.
+            max_size (int): The maximum size of the resized image.
+
+        Returns:
+            The resized image data.
+        """
+        result = ImageDTO(None)
+        result.orig_shape = self.orig_shape
+
+        img_shape = self.image.shape[1:][::-1] if isinstance(self.image, torch.Tensor) else self.image.shape[:2][::-1]
+
+        # update new_shape
+        new_shape = to_2tuple(new_shape)
+        if keep_ratio:
+            orig_ratio = img_shape[1] / img_shape[0]
+            new_ratio = new_shape[1] / new_shape[0]
+
+            if (orig_ratio > new_ratio) ^ align_shorter_edge:
+                new_shape = (int(round(new_shape[1] / orig_ratio)), new_shape[1])
+            else:
+                new_shape = (new_shape[0], int(round(new_shape[0] * orig_ratio)))
+
+            if max_size is not None:
+                if orig_ratio >= 1 and new_shape[1] > max_size:
+                    new_shape = (int(round(max_size / orig_ratio)), max_size)
+                elif orig_ratio < 1 and new_shape[0] > max_size:
+                    new_shape = (max_size, int(round(max_size * orig_ratio)))
+
+        # apply resize
+        if isinstance(self.image, torch.Tensor):
+            result.image = F.resize(self.image, new_shape, interpolation=F.InterpolationMode.BILINEAR, antialias=False)
+        else:
+            result.image = cv2.resize(self.image, new_shape, interpolation=cv2.INTER_LINEAR)
+
+        # update scale and left_top
+        scale = (new_shape[0] / img_shape[0], new_shape[1] / img_shape[1])
+        result.scale = (self.scale[0] * scale[0], self.scale[1] * scale[1])
+        result.left_top = (self.left_top[0] * scale[0], self.left_top[1] * scale[1])
+
+        return result
+    
+
+    def pad(self, new_shape=None, center=True, fill=114, stride=None) -> "ImageDTO":
+        """
+        Pad the image to a specified shape.
+
+        Args:
+            new_shape (tuple): The target shape (width, height) for padding.
+            center (bool): Whether to center the image or align to top-left.
+            fill (int): The value to fill the padding.
+            stride (int): When specified, padding will only to make the image shape divisible by the stride.
+
+        Returns:
+            The padded image data.
+        """
+        assert (new_shape is not None) ^ (stride is not None), 'Must and can only specify one of new_shape or stride.'
+
+        result = ImageDTO(None)
+        result.orig_shape = self.orig_shape
+
+        img_shape = self.image.shape[1:][::-1] if isinstance(self.image, torch.Tensor) else self.image.shape[:2][::-1]
+        if new_shape is not None:
+            new_shape = to_2tuple(new_shape)
+            dw, dh = new_shape[0] - img_shape[0], new_shape[1] - img_shape[1]
+        else:
+            dw, dh = (-img_shape[0]) % stride, (-img_shape[1]) % stride
+        
+        top, left = 0, 0
+        if dw > 0 or dh > 0:
+            if center:
+                top, bottom = int(round(dh / 2 - 0.1)), int(round(dh / 2 + 0.1))
+                left, right = int(round(dw / 2 - 0.1)), int(round(dw / 2 + 0.1))
+            else:
+                top, bottom = 0, dh
+                left, right = 0, dw
+            
+            if isinstance(self.image, torch.Tensor):
+                result.image = F.pad(self.image, (left, right, top, bottom), fill=fill / 127.5 - 1.0)
+            else:
+                result.image = cv2.copyMakeBorder(self.image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=fill)
+        
+        result.scale = self.scale
+        result.left_top = (self.left_top[0] + left, self.left_top[1] + top)
+
+        return result
+
+
+    def to_tensor(self, rgb2bgr=False, mean=None, std=None, to_01=True) -> torch.Tensor:
         """
         Convert the image data to a tensor.
         
         Resizing and padding images to a specified shape then normalize the tensor.
 
         Args:
-            size (tuple): Target shape (height, width) for resizing.
-            keep_ratio (bool): Whether to keep the aspect ratio of the image.
-            center (bool): Whether to center the image or align to top-left.
-            fill (int): The value to fill the padding.
-            stride (int): When specified, padding will only to make the image shape divisible by the stride.
             rgb2bgr (bool): Whether to change RGB to BGR. Set to True if your model is trained with BGR format.
             mean (list, optional): The mean values for normalization.
             std (list, optional): The std values for normalization.
             to_01 (bool): Whether to normalize the tensor to [0, 1].
-            device (str, optional): The device to put the tensor.
-            dtype (torch.dtype, optional): The data type of the tensor.
 
         Returns:
             The image data in tensor format and the resize ratio if size is not None.
         """
         # convert image to tensor or use the kept tensor
-        if self.tensor is not None:
-            tensor = self.tensor.unsqueeze(0)
+        if isinstance(self.image, torch.Tensor):
+            tensor = self.image.unsqueeze(0)
             if to_01:
                 tensor = (tensor + 1.0) / 2.0
             else:
@@ -103,56 +205,54 @@ class ImageDTO:
             if to_01:
                 tensor = tensor / 255.0
 
-        if to_01:
-            fill = fill / 255.0
-
         if rgb2bgr:
-            tensor = tensor[:, ::-1, :, :]
-
-        if size is not None:
-            size = to_2tuple(size)
-            # determine size and padding
-            if keep_ratio:
-                im_ratio = self.image.shape[0] / self.image.shape[1]
-                model_ratio = size[1] / size[0]
-                if im_ratio > model_ratio:
-                    new_h = size[1]
-                    new_w = int(round(new_h / im_ratio))
-                else:
-                    new_w = size[0]
-                    new_h = int(round(new_w * im_ratio))
-                
-                dw, dh = size[0] - new_w, size[1] - new_h
-            else:
-                dw, dh = 0, 0
-                new_w, new_h = size
-            
-            if stride is not None:
-                dw, dh = dw % stride, dh % stride
-            
-            self.last_scale = (new_w / self.image.shape[1], new_h / self.image.shape[0])
-    
-            # resize
-            if new_h != self.image.shape[0] or new_w != self.image.shape[1]:
-                tensor = F.interpolate(tensor, size=(new_h, new_w), mode='bilinear')
-    
-            # padding
-            if dw > 0 or dh > 0:
-                if center:
-                    top, bottom = int(round(dh / 2 - 0.1)), int(round(dh / 2 + 0.1))
-                    left, right = int(round(dw / 2 - 0.1)), int(round(dw / 2 + 0.1))
-                else:
-                    top, bottom = 0, dh
-                    left, right = 0, dw
-                
-                tensor = F.pad(tensor, (left, right, top, bottom), mode='constant', value=fill)
+            tensor = tensor[:, [2, 1, 0], :, :]
 
         if mean is not None or std is not None:
             mean = mean if mean is not None else 0.0
             std = std if std is not None else 1.0
-            TF.normalize(tensor, mean=mean, std=std, inplace=True)
+            F.normalize(tensor, mean=mean, std=std, inplace=True)
         
-        tensor = tensor.to(device=device, dtype=dtype)
         return tensor
+
     
+    def restore_keypoints(self, keypoints: np.ndarray | torch.Tensor, uniformed=False) -> np.ndarray | torch.Tensor:
+        """
+        Restore and clamp the keypoints such as bounding boxes or landmarks to the original image size.
+
+        Args:
+            keypoints (Tensor): The bounding boxes or landmarks with shape (num_boxes, num_keypoints * 2) or
+                (num_boxes, num_keypoints, 2) in the resized image.
+            uniformed (bool): Whether the keypoints are uniformed.
+
+        Returns:
+            The bounding boxes or landmarks in the original image.
+        """
+
+        reshaped = False
+        if len(keypoints.shape) == 2:
+            assert keypoints.shape[-1] % 2 == 0, 'The last dimension of 2D keypoints should be even.'
+            keypoints = keypoints.reshape(keypoints.shape[0], -1, 2)
+            reshaped = True
+        elif len(keypoints.shape) == 3:
+            assert keypoints.shape[-1] == 2, 'The last dimension of 3D keypoints should be 2.'
+        else:
+            raise ValueError(f'Unsupported keypoints shape: {keypoints.shape}')
     
+        if uniformed:
+            img_shape = self.image.shape[1:][::-1] if isinstance(self.image, torch.Tensor) else self.image.shape[:2][::-1]
+            keypoints[:, :, 0] = keypoints[:, :, 0] * img_shape[0]
+            keypoints[:, :, 1] = keypoints[:, :, 1] * img_shape[1]
+        
+        keypoints[:, :, 0] = (keypoints[:, :, 0] - self.left_top[0]) / self.scale[0]
+        keypoints[:, :, 1] = (keypoints[:, :, 1] - self.left_top[1]) / self.scale[1]
+
+        # clamp keypoints
+        clamp_func = torch.clamp if isinstance(keypoints, torch.Tensor) else np.clip
+        keypoints[..., 0] = clamp_func(keypoints[..., 0], 0, self.orig_shape[0])
+        keypoints[..., 1] = clamp_func(keypoints[..., 1], 0, self.orig_shape[1])
+
+        if reshaped:
+            keypoints = keypoints.reshape(keypoints.shape[0], -1)
+
+        return keypoints

@@ -28,10 +28,9 @@ def main(args):
 
         det_face = img[top:bottom, left:right, :]
         
-        det_face = ImageDTO(det_face).to_tensor(
-            size=(224, 224), mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], rgb2bgr=True,
-            device=next(headpose_net.parameters()).device
-        )
+        det_face = ImageDTO(det_face).resize((224, 224)).to_tensor(
+            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], rgb2bgr=True,
+        ).to(device=next(headpose_net.parameters()).device)
 
         yaw, pitch, roll = headpose_net(det_face)
         visualize_headpose(img, yaw, pitch, roll, args.save_path)

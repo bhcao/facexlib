@@ -1,16 +1,13 @@
 import warnings
-import cv2
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from PIL import Image
 from torchvision.models._utils import IntermediateLayerGetter as IntermediateLayerGetter
 
 from facexlib.detection.align_trans import get_reference_facial_points, warp_and_crop_face
 from facexlib.detection.retinaface_net import FPN, SSH, MobileNetV1, make_bbox_head, make_class_head, make_landmark_head
-from facexlib.detection.retinaface_utils import (PriorBox, batched_decode, batched_decode_landm, decode, decode_landm,
-                                                 py_cpu_nms)
+from facexlib.detection.retinaface_utils import (PriorBox, batched_decode, batched_decode_landm, py_cpu_nms)
 from facexlib.utils.image_dto import ImageDTO
 
 
@@ -83,8 +80,7 @@ class RetinaFace(nn.Module):
         self.model_name = f'retinaface_{network_name}'
         self.cfg = cfg
         self.phase = phase
-        self.target_size = 1600
-        self.resize, self.scale, self.scale1 = 1., None, None
+        self.target_size, self.max_size = 1600, 2150
         self.mean_tensor = (104., 117., 123.)
         self.reference = get_reference_facial_points(default_square=True)
         # Build network.
@@ -144,77 +140,110 @@ class RetinaFace(nn.Module):
             output = (bbox_regressions, F.softmax(classifications, dim=-1), ldm_regressions)
         return output
 
-    def __detect_faces(self, inputs):
-        # get scale
-        height, width = inputs.shape[2:]
-        self.scale = torch.tensor([width, height, width, height], dtype=torch.float32, device=self.device)
-        tmp = [width, height, width, height, width, height, width, height, width, height]
-        self.scale1 = torch.tensor(tmp, dtype=torch.float32, device=self.device)
-
-        # forawrd
-        inputs = inputs.to(self.device)
-        if self.half_inference:
-            inputs = inputs.half()
-        loc, conf, landmarks = self(inputs)
-
-        # get priorbox
-        priorbox = PriorBox(self.cfg, image_size=inputs.shape[2:])
-        priors = priorbox.forward().to(self.device)
-
-        return loc, conf, landmarks, priors
-
-
     def detect_faces(
         self,
-        image,
+        images,
         conf_threshold=0.8,
         nms_threshold=0.4,
         use_origin_size=True,
+        pad_to_same_size=False,
     ):
-        if not use_origin_size:
-            warnings.warn("The method of resizing has been changed to letterbox.")
-
-        imagedto = ImageDTO(image)
-        image = imagedto.to_tensor(
-            size=None if use_origin_size else self.target_size,
-            keep_ratio=True,
+        """
+        Args:
+            images: a list of PIL.Image, np.array, or image file paths.
+            conf_threshold: confidence threshold.
+            nms_threshold: nms threshold.
+            use_origin_size: whether to use origin size.
+        
+        Returns:
+            list of np.array ([n_boxes, 15], type=np.float32) in (xyxy, conf, landmarks) format.
+        """
+        # prepare input
+        only_one_img = False
+        if not isinstance(images, (list, tuple)):
+            images = [images]
+            only_one_img = True
+        
+        if use_origin_size:
+            images = [ImageDTO(img) for img in images]
+        else:
+            images = [ImageDTO(img).resize(
+                self.target_size, keep_ratio=True, align_shorter_edge=True, max_size=self.max_size
+            ) for img in images]
+        
+        same_shape = len({x.image.shape for x in images}) == 1
+        if not same_shape:
+            if pad_to_same_size:
+                max_shape = np.max(np.array([x.image.shape for x in images]), axis=0)
+                images = [x.pad(max_shape) for x in images]
+            else:
+                raise ValueError('Images have different shapes, set pad_to_same_size=True.')
+        
+        image_tensors = torch.cat([image.to_tensor(
             rgb2bgr=True,
             mean=self.mean_tensor,
             to_01=False,
+        ) for image in images]).to(
             device=self.device,
             dtype=torch.half if self.half_inference else torch.float32,
         )
-        self.resize = imagedto.last_scale[0]
 
-        loc, conf, landmarks, priors = self.__detect_faces(image)
+        # inference
+        b_loc, b_conf, b_landmarks = self.forward(image_tensors)
 
-        boxes = decode(loc.data.squeeze(0), priors.data, self.cfg['variance'])
-        boxes = boxes * self.scale / self.resize
-        boxes = boxes.cpu().numpy()
+        # get priorbox
+        priorbox = PriorBox(self.cfg, image_size=image_tensors.shape[2:])
+        priors = priorbox.forward().to(self.device).unsqueeze(0)
 
-        scores = conf.squeeze(0).data.cpu().numpy()[:, 1]
+        # post-process
+        boxes = batched_decode(b_loc, priors, self.cfg['variance'])
+        boxes = torch.stack([images[i].restore_keypoints(box, uniformed=True) for i, box in enumerate(boxes)])
 
-        landmarks = decode_landm(landmarks.squeeze(0), priors, self.cfg['variance'])
-        landmarks = landmarks * self.scale1 / self.resize
-        landmarks = landmarks.cpu().numpy()
+        scores = b_conf[:, :, 1]
 
-        # ignore low scores
-        inds = np.where(scores > conf_threshold)[0]
-        boxes, landmarks, scores = boxes[inds], landmarks[inds], scores[inds]
+        landmarks = batched_decode_landm(b_landmarks, priors, self.cfg['variance'])
+        landmarks = torch.stack([images[i].restore_keypoints(landmark, uniformed=True) for i, landmark in enumerate(landmarks)])
 
-        # sort
-        order = scores.argsort()[::-1]
-        boxes, landmarks, scores = boxes[order], landmarks[order], scores[order]
+        # index for selection
+        b_indice = scores > conf_threshold
 
-        # do NMS
-        bounding_boxes = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=False)
-        keep = py_cpu_nms(bounding_boxes, nms_threshold)
-        bounding_boxes, landmarks = bounding_boxes[keep, :], landmarks[keep]
-        # self.t['forward_pass'].toc()
-        # print(self.t['forward_pass'].average_time)
-        # import sys
-        # sys.stdout.flush()
-        return np.concatenate((bounding_boxes, landmarks), axis=1)
+        # concat
+        b_preds = torch.cat((boxes, scores.unsqueeze(-1)), dim=2).float()
+
+        final_results = []
+
+        for pred, landm, inds in zip(b_preds, landmarks, b_indice):
+
+            # ignore low scores
+            pred, landm = pred[inds, :], landm[inds, :]
+
+            if pred.shape[0] == 0:
+                final_results.append(np.array([], dtype=np.float32))
+                continue
+
+            # sort
+            # order = score.argsort(descending=True)
+            # box, landm, score = box[order], landm[order], score[order]
+
+            # to CPU
+            bounding_boxes, landm = pred.cpu().numpy(), landm.cpu().numpy()
+
+            # NMS
+            keep = py_cpu_nms(bounding_boxes, nms_threshold)
+            bounding_boxes, landmarks = bounding_boxes[keep, :], landm[keep]
+
+            # append
+            final_results.append(np.concatenate((bounding_boxes, landmarks), axis=1))
+        # self.t['forward_pass'].toc(average=True)
+        # self.batch_time += self.t['forward_pass'].diff
+        # self.total_frame += len(frames)
+        # print(self.batch_time / self.total_frame)
+
+        if only_one_img:
+            final_results = final_results[0]
+
+        return final_results
+
 
     def __align_multi(self, image, boxes, landmarks, limit=None):
 
@@ -241,110 +270,13 @@ class RetinaFace(nn.Module):
 
         return self.__align_multi(img, boxes, landmarks, limit)
 
-    # batched detection
-    def batched_transform(self, frames, use_origin_size):
-        """
-        Arguments:
-            frames: a list of PIL.Image, or torch.Tensor(shape=[n, h, w, c],
-                type=np.float32, BGR format).
-            use_origin_size: whether to use origin size.
-        """
-        from_PIL = True if isinstance(frames[0], Image.Image) else False
-
-        # convert to opencv format
-        if from_PIL:
-            frames = [cv2.cvtColor(np.asarray(frame), cv2.COLOR_RGB2BGR) for frame in frames]
-            frames = np.asarray(frames, dtype=np.float32)
-
-        # testing scale
-        im_size_min = np.min(frames[0].shape[0:2])
-        im_size_max = np.max(frames[0].shape[0:2])
-        resize = float(self.target_size) / float(im_size_min)
-
-        # prevent bigger axis from being more than max_size
-        if np.round(resize * im_size_max) > self.max_size:
-            resize = float(self.max_size) / float(im_size_max)
-        resize = 1 if use_origin_size else resize
-
-        # resize
-        if resize != 1:
-            if not from_PIL:
-                frames = F.interpolate(frames, scale_factor=resize)
-            else:
-                frames = [
-                    cv2.resize(frame, None, None, fx=resize, fy=resize, interpolation=cv2.INTER_LINEAR)
-                    for frame in frames
-                ]
-
-        # convert to torch.tensor format
-        if not from_PIL:
-            frames = frames.transpose(1, 2).transpose(1, 3).contiguous()
-        else:
-            frames = frames.transpose((0, 3, 1, 2))
-            frames = torch.from_numpy(frames)
-
-        return frames, resize
-
     def batched_detect_faces(self, frames, conf_threshold=0.8, nms_threshold=0.4, use_origin_size=True):
-        """
-        Arguments:
-            frames: a list of PIL.Image, or np.array(shape=[n, h, w, c],
-                type=np.uint8, BGR format).
-            conf_threshold: confidence threshold.
-            nms_threshold: nms threshold.
-            use_origin_size: whether to use origin size.
-        Returns:
-            final_bounding_boxes: list of np.array ([n_boxes, 5],
-                type=np.float32).
-            final_landmarks: list of np.array ([n_boxes, 10], type=np.float32).
-        """
-        # self.t['forward_pass'].tic()
-        frames, self.resize = self.batched_transform(frames, use_origin_size)
-        frames = frames.to(self.device)
-        frames = frames - self.mean_tensor
+        warnings.warn('This function is deprecated, use detect_faces instead.', DeprecationWarning)
 
-        b_loc, b_conf, b_landmarks, priors = self.__detect_faces(frames)
-
-        final_bounding_boxes, final_landmarks = [], []
-
-        # decode
-        priors = priors.unsqueeze(0)
-        b_loc = batched_decode(b_loc, priors, self.cfg['variance']) * self.scale / self.resize
-        b_landmarks = batched_decode_landm(b_landmarks, priors, self.cfg['variance']) * self.scale1 / self.resize
-        b_conf = b_conf[:, :, 1]
-
-        # index for selection
-        b_indice = b_conf > conf_threshold
-
-        # concat
-        b_loc_and_conf = torch.cat((b_loc, b_conf.unsqueeze(-1)), dim=2).float()
-
-        for pred, landm, inds in zip(b_loc_and_conf, b_landmarks, b_indice):
-
-            # ignore low scores
-            pred, landm = pred[inds, :], landm[inds, :]
-            if pred.shape[0] == 0:
-                final_bounding_boxes.append(np.array([], dtype=np.float32))
-                final_landmarks.append(np.array([], dtype=np.float32))
-                continue
-
-            # sort
-            # order = score.argsort(descending=True)
-            # box, landm, score = box[order], landm[order], score[order]
-
-            # to CPU
-            bounding_boxes, landm = pred.cpu().numpy(), landm.cpu().numpy()
-
-            # NMS
-            keep = py_cpu_nms(bounding_boxes, nms_threshold)
-            bounding_boxes, landmarks = bounding_boxes[keep, :], landm[keep]
-
-            # append
-            final_bounding_boxes.append(bounding_boxes)
-            final_landmarks.append(landmarks)
-        # self.t['forward_pass'].toc(average=True)
-        # self.batch_time += self.t['forward_pass'].diff
-        # self.total_frame += len(frames)
-        # print(self.batch_time / self.total_frame)
+        results = self.detect_faces(frames, conf_threshold=conf_threshold, nms_threshold=nms_threshold, 
+                                    use_origin_size=use_origin_size)
+        
+        final_bounding_boxes = [result[:, 0:5] for result in results]
+        final_landmarks = [result[:, 5:] for result in results]
 
         return final_bounding_boxes, final_landmarks
