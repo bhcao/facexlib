@@ -11,7 +11,7 @@ def main(args):
     modnet = init_matting_model()
 
     img = ImageDTO(args.img_path)
-    img_t = img.to_tensor(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)).to(device=next(modnet.parameters()).device)
+    img_t = img.to_tensor(mean=127.5, std=127.5).to(device=next(modnet.parameters()).device)
 
     # resize image for input
     _, _, im_h, im_w = img_t.shape

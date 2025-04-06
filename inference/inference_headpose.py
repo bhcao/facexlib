@@ -4,7 +4,7 @@ import torch
 
 from facexlib.detection import init_detection_model
 from facexlib.headpose import init_headpose_model
-from facexlib.utils.image_dto import ImageDTO
+from facexlib.utils.image_dto import ImageDTO, MEAN_IMG, STD_IMG
 from facexlib.visualization import visualize_headpose
 
 
@@ -29,7 +29,7 @@ def main(args):
         det_face = img[top:bottom, left:right, :]
         
         det_face = ImageDTO(det_face).resize((224, 224)).to_tensor(
-            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], rgb2bgr=True,
+            mean=MEAN_IMG, std=STD_IMG, rgb2bgr=True,
         ).to(device=next(headpose_net.parameters()).device)
 
         yaw, pitch, roll = headpose_net(det_face)

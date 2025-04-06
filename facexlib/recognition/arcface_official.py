@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
-import cv2
+
+from facexlib.utils.image_dto import ImageDTO
+from .utils import arcface_dst
 
 class ResBlock(nn.Module):
     def __init__(self, in_chans, scale=1, downsample=False):
@@ -76,15 +78,41 @@ class ArcFace(nn.Module):
 
 
     def get_feat(self, imgs):
-        if not isinstance(imgs, list):
-            imgs = [imgs]
+        '''
+        Get embedding features of aligned face images.
 
-        blob = cv2.dnn.blobFromImages(imgs, 1.0 / self.input_std, self.input_size,
-                                      (self.input_mean, self.input_mean, self.input_mean), swapRB=True)
+        Args:
+            imgs (list or str or tensor): aligned face images.
+        '''
+        only_one_img = False
+        if not isinstance(imgs, (list, tuple)):
+            imgs = [imgs]
+            only_one_img = True
         
-        blob = torch.from_numpy(blob).to(next(self.parameters()).device)
-        net_out = self.forward(blob)
-        return net_out
+        imgs = [ImageDTO(img).resize(self.input_size).to_tensor(rgb2bgr=True, mean=self.input_mean, std=self.input_std)
+                for img in imgs]
+        imgs = torch.cat(imgs, dim=0).to(next(self.parameters()).device)
+        net_out = self.forward(imgs)
+        return net_out[0] if only_one_img else net_out
+
+
+    def get(self, imgs, landmarks):
+        '''
+        Get embedding features of unaligned face images. Align face images using landmark keypoints first.
+
+        Args:
+            imgs (list or str or tensor): unaligned face images.
+            landmarks (list or tensor): landmark keypoints with shape (batch_size, 10).
+        '''
+        only_one_img = False
+        if not isinstance(imgs, (list, tuple)):
+            imgs = [imgs]
+            landmarks = [landmarks]
+            only_one_img = True
+        
+        aligned_imgs = [ImageDTO(img).align(self.input_size, landmark, arcface_dst, fill=0) for img, landmark in zip(imgs, landmarks)]
+        
+        return self.get_feat(aligned_imgs[0] if only_one_img else aligned_imgs)
 
 
     # must transform to [0, 1] before input

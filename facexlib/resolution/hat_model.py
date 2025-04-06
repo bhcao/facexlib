@@ -185,4 +185,4 @@ class HATModel(SRModel):
         del self.output
         torch.cuda.empty_cache()
 
-        return ImageDTO(visuals['result'], min_max=(0, 1)).image
+        return ImageDTO(visuals['result'], min_max=(0, 1), keep_tensor=False).image

@@ -4,13 +4,19 @@ import cv2
 import numpy as np
 from pathlib import Path
 import torch
-import torchvision.transforms.functional as F
+import torch.nn.functional as F
+import torchvision.transforms.functional as F_v
+import torchvision.transforms._functional_tensor as F_t
 
-from timm.layers import to_2tuple
+from timm.layers import to_2tuple, to_3tuple
+
+# ImageNet mean and std
+MEAN_IMG = [123.675, 116.28, 103.53]
+STD_IMG = [58.395, 57.12, 57.375]
 
 class ImageDTO:
     def __init__(self, image: Union[Image.Image, np.ndarray, str, Path, torch.Tensor, "ImageDTO"],
-                 bgr2rgb=True, min_max=(-1, 1), keep_tensor=False):
+                 bgr2rgb=True, min_max=(-1, 1), keep_tensor=True):
         """
         A data transfer object for image data.
 
@@ -23,6 +29,10 @@ class ImageDTO:
                 torch.Tensor.
             keep_tensor (bool, optional): Whether to keep the input tensor for gradient calculation.
         """
+        # scale first, padding later
+        self.scale = (1.0, 1.0)
+        self.left_top = (0.0, 0.0)
+
         if image is None:
             return
 
@@ -75,9 +85,6 @@ class ImageDTO:
         else:
             raise TypeError(f'Unsupported image type: {type(image)}')
 
-        # scale first, padding later
-        self.scale = (1.0, 1.0)
-        self.left_top = (0.0, 0.0)
         if isinstance(self.image, torch.Tensor):
             self.orig_shape = tuple(self.image.shape[1:][::-1])
         else:
@@ -86,7 +93,7 @@ class ImageDTO:
 
     def resize(self, new_shape: tuple, keep_ratio=False, align_shorter_edge=False, max_size=None) -> "ImageDTO":
         """
-        Resize the image to a specified shape.
+        Resize the image to a specified shape. Restoring bbox is supported.
 
         Args:
             new_shape (tuple): The target shape (width, height) for resizing.
@@ -121,7 +128,7 @@ class ImageDTO:
 
         # apply resize
         if isinstance(self.image, torch.Tensor):
-            result.image = F.resize(self.image, new_shape, interpolation=F.InterpolationMode.BILINEAR, antialias=False)
+            result.image = F_v.resize(self.image, (new_shape[1], new_shape[0]), interpolation=F_v.InterpolationMode.BILINEAR, antialias=False)
         else:
             result.image = cv2.resize(self.image, new_shape, interpolation=cv2.INTER_LINEAR)
 
@@ -135,7 +142,7 @@ class ImageDTO:
 
     def pad(self, new_shape=None, center=True, fill=114, stride=None) -> "ImageDTO":
         """
-        Pad the image to a specified shape.
+        Pad the image to a specified shape. Restoring bbox is supported.
 
         Args:
             new_shape (tuple): The target shape (width, height) for padding.
@@ -168,7 +175,7 @@ class ImageDTO:
                 left, right = 0, dw
             
             if isinstance(self.image, torch.Tensor):
-                result.image = F.pad(self.image, (left, right, top, bottom), fill=fill / 127.5 - 1.0)
+                result.image = F_v.pad(self.image, (left, top, right, bottom), fill=fill / 127.5 - 1.0)
             else:
                 result.image = cv2.copyMakeBorder(self.image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=fill)
         
@@ -178,40 +185,84 @@ class ImageDTO:
         return result
 
 
-    def to_tensor(self, rgb2bgr=False, mean=None, std=None, to_01=True) -> torch.Tensor:
+    def align(self, new_shape, kps_src, kps_dst, fill=(135, 133, 132)) -> "ImageDTO":
         """
-        Convert the image data to a tensor.
+        Align the image by transforming the source keypoints to the destination keypoints. Restoring bbox is not supported.
+
+        Args:
+            new_shape (tuple): The target shape (width, height) for aligning.
+            kps_src (np.ndarray): The source keypoints with shape (num_keypoints, 2).
+            kps_dst (np.ndarray): The destination keypoints with shape (num_keypoints, 2).
+            fill (tuple): The value to fill the padding. Default to gray.
+
+        Returns:
+            The aligned image data.
+        """
+        result = ImageDTO(None)
+        result.orig_shape = self.orig_shape
+
+        # caculate affine matrix
+        kps_src = np.array(kps_src).reshape(-1, 2)
+        kps_dst = np.array(kps_dst).reshape(-1, 2)
+        M_affine = cv2.estimateAffinePartial2D(kps_src, kps_dst, method=cv2.LMEDS)[0]
+
+        new_shape = to_2tuple(new_shape)
+        fill = to_3tuple(fill)
+
+        if isinstance(self.image, torch.Tensor):
+            fill = tuple(i / 127.5 - 1.0 for i in fill)
+            M_affine = torch.cat([torch.from_numpy(M_affine).float(), torch.tensor([[0.0, 0.0, 1.0]])], dim=0)
+
+            # convert cv2 affine matrix to pytorch affine matrix
+            M_norm = torch.tensor(
+                [[2.0 / self.image.shape[2], 0.0 , -1.0],
+                [0.0 , 2.0 / self.image.shape[1], -1.0]]
+            )
+            M_inv_norm = torch.tensor(
+                [[new_shape[0] / 2.0, 0.0, new_shape[0] / 2.0],
+                [0.0, new_shape[1] / 2.0, new_shape[1] / 2.0],
+                [0.0, 0.0, 1.0]]
+            )
+            M_affine = torch.mm(torch.mm(M_norm, torch.inverse(M_affine)), M_inv_norm).unsqueeze(0)
+
+            # apply affine transform. Use _apply_grid_transform instead of grid_sample to allow filling value
+            grid = F.affine_grid(M_affine, [1, self.image.shape[0], new_shape[1], new_shape[0]], align_corners=False)
+            aligned_img = F_t._apply_grid_transform(self.image, grid, mode="bilinear", fill=fill)
+        else:
+            aligned_img = cv2.warpAffine(self.image, M_affine, new_shape, borderValue=fill)
         
-        Resizing and padding images to a specified shape then normalize the tensor.
+        result.image = aligned_img
+        return result
+
+
+    def to_tensor(self, rgb2bgr=False, mean=0.0, std=255.0) -> torch.Tensor:
+        """
+        Convert the image data to a tensor. Normalize to range (0, 1) by default.
 
         Args:
             rgb2bgr (bool): Whether to change RGB to BGR. Set to True if your model is trained with BGR format.
             mean (list, optional): The mean values for normalization.
             std (list, optional): The std values for normalization.
-            to_01 (bool): Whether to normalize the tensor to [0, 1].
 
         Returns:
             The image data in tensor format and the resize ratio if size is not None.
         """
+        mean = to_3tuple(mean)
+        std = to_3tuple(std)
+
         # convert image to tensor or use the kept tensor
         if isinstance(self.image, torch.Tensor):
             tensor = self.image.unsqueeze(0)
-            if to_01:
-                tensor = (tensor + 1.0) / 2.0
-            else:
-                tensor = ((tensor + 1.0) * 127.5).round()
+            mean = tuple(m / 127.5 - 1.0 for m in mean)
+            std = tuple(s / 127.5 for s in std)
         else:
             tensor = torch.from_numpy(self.image).permute(2, 0, 1).float().unsqueeze(0)
-            if to_01:
-                tensor = tensor / 255.0
 
         if rgb2bgr:
             tensor = tensor[:, [2, 1, 0], :, :]
 
-        if mean is not None or std is not None:
-            mean = mean if mean is not None else 0.0
-            std = std if std is not None else 1.0
-            F.normalize(tensor, mean=mean, std=std, inplace=True)
+        if any(m != 0.0 for m in mean) or any(s != 1.0 for s in std):
+            F_v.normalize(tensor, mean=mean, std=std, inplace=True)
         
         return tensor
 

@@ -3,7 +3,7 @@ import torch
 from facexlib.utils import load_file_from_url
 from .arcface_arch import Backbone
 from .arcface_official import ArcFace
-from .utils import norm_crop, calculate_sim
+from .utils import calculate_sim
 
 
 def init_recognition_model(model_name, half=False, device=None, model_rootpath=None):

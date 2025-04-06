@@ -196,5 +196,5 @@ class ParseNet(nn.Module):
         return out_mask, out_img
     
     def parse(self, x):
-        x = ImageDTO(x).resize((512, 512)).to_tensor(mean=0.5, std=0.5).to(device=next(self.parameters()).device)
+        x = ImageDTO(x).resize((512, 512)).to_tensor(mean=127.5, std=127.5).to(device=next(self.parameters()).device)
         return self.forward(x)

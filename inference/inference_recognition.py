@@ -7,7 +7,7 @@ import numpy as np
 import torch
 
 from facexlib.detection import init_detection_model
-from facexlib.recognition import init_recognition_model, calculate_sim, norm_crop
+from facexlib.recognition import init_recognition_model, calculate_sim
 
 
 def main(args):
@@ -21,10 +21,7 @@ def main(args):
         bbox1 = det_net.detect_faces(img1, 0.97)[0]
         bbox2 = det_net.detect_faces(img2, 0.97)[0]
 
-        img1_crop = norm_crop(img1, bbox1[5:])
-        img2_crop = norm_crop(img2, bbox2[5:])
-
-        output = recog_net.get_feat([img1_crop, img2_crop])
+        output = recog_net.get([img1, img2], [bbox1[5:], bbox2[5:]])
 
     output = output.data.cpu().numpy()
 

@@ -278,7 +278,7 @@ class InsightRetina(nn.Module):
 
         img = ImageDTO(img)
         resized_img = img.resize(self.input_size, keep_ratio=True).pad(self.input_size, center=False, fill=0)
-        det_img = resized_img.to_tensor(mean=self.input_mean, std=self.input_std, to_01=False).to(
+        det_img = resized_img.to_tensor(mean=self.input_mean, std=self.input_std).to(
             device=next(self.parameters()).device, dtype=next(self.parameters()).dtype
         )
 

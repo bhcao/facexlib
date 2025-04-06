@@ -182,7 +182,7 @@ class RetinaFace(nn.Module):
         image_tensors = torch.cat([image.to_tensor(
             rgb2bgr=True,
             mean=self.mean_tensor,
-            to_01=False,
+            std=1.0
         ) for image in images]).to(
             device=self.device,
             dtype=torch.half if self.half_inference else torch.float32,
