@@ -1,10 +1,10 @@
-from typing import Optional
+from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 
+from facexlib.utils.image_dto import ImageDTO
 from facexlib.utils.misc import get_root_logger
-from facexlib.genderage.utils import create_model
-from facexlib.genderage.structures import PersonAndFaceResult
+from facexlib.genderage.utils import create_model, crop_object
 from timm.data import resolve_data_config
 
 has_compile = hasattr(torch, "compile")
@@ -124,55 +124,92 @@ class MiVOLO:
         if self.half:
             self.model = self.model.half()
 
-    def warmup(self, batch_size: int, steps=10):
-        if self.meta.with_persons_model:
-            input_size = (6, self.input_size, self.input_size)
-        else:
-            input_size = self.data_config["input_size"]
+    def inference(self, model_input: torch.tensor, keep_pre_logits: bool = False) -> torch.tensor:
 
-        input = torch.randn((batch_size,) + tuple(input_size)).to(self.device)
+        if self.half:
+            model_input = model_input.half()
+        
+        features = self.model.forward_features(model_input)
+        output = self.model.forward_head(features)
+        if keep_pre_logits:
+            pre_logits = self.model.forward_head(features, pre_logits=True)
+            return output, pre_logits
 
-        for _ in range(steps):
-            out = self.inference(input)  # noqa: F841
+        return output, None
 
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
+    def predict(self, image: Union[np.ndarray, str, torch.Tensor], bboxes: np.ndarray, keep_pre_logits: bool = False):
+        '''
+        Predict age and gender for faces and persons in the image.
 
-    def inference(self, model_input: torch.tensor) -> torch.tensor:
+        Args:
+            image: Input image, ImageDTO accepted type.
+            bboxes: Bounding boxes of faces and persons, shape (n, 10).
+            keep_pre_logits: Whether to return pre-logits or not.
+        
+        Returns:
+            A tuple of (ages, genders, gender_scores), where ages, genders, and gender_scores are lists of length n.
+            If `keep_pre_logits` is True, will also return pre-logits.
+        '''
+        image = ImageDTO(image)
 
-        with torch.no_grad():
-            if self.half:
-                model_input = model_input.half()
-            output = self.model(model_input)
-        return output
+        if len(bboxes) > 0:
+            assert bboxes.shape[1] == 10, "Results should have both persons and faces"
 
-    def predict(self, image: np.ndarray, detected_bboxes):
-        detected_bboxes = PersonAndFaceResult(detected_bboxes[0])
+        n_faces = np.sum(np.logical_not(np.isnan(bboxes[:, 0])))
+        n_persons = np.sum(np.logical_not(np.isnan(bboxes[:, 5])))
         if (
-            (detected_bboxes.n_objects == 0)
-            or (not self.meta.use_persons and detected_bboxes.n_faces == 0)
-            or (self.meta.disable_faces and detected_bboxes.n_persons == 0)
+            (len(bboxes) == 0)
+            or (not self.meta.use_persons and n_faces == 0)
+            or (self.meta.disable_faces and n_persons == 0)
         ):
             # nothing to process
-            return detected_bboxes
+            return None
 
-        faces_input, person_input, faces_inds, bodies_inds = self.prepare_crops(image, detected_bboxes)
+        zero_img = ImageDTO(np.zeros((1, 1, 3), dtype=np.uint8))
+        assert self.meta.use_face_crops or self.meta.use_person_crops, "Must specify at least one of use_persons and use_faces"
+
+        # crop faces and persons
+        faces_crops, person_crops = [], []
+        inds = []
+        for ind in range(len(bboxes)):
+            face_image = crop_object(bboxes, image, ind) if self.meta.use_face_crops else zero_img
+            person_image = crop_object(bboxes, image, ind, is_person=True) if self.meta.use_person_crops else zero_img
+
+            if face_image is not None or person_image is not None:
+                faces_crops.append(face_image.resize(self.input_size, keep_ratio=True).pad(self.input_size, fill=0)
+                                   .to_tensor(mean=self.data_config["mean"], std=self.data_config["std"], timm_form=True))
+                person_crops.append(person_image.resize(self.input_size, keep_ratio=True).pad(self.input_size, fill=0)
+                                    .to_tensor(mean=self.data_config["mean"], std=self.data_config["std"], timm_form=True))
+                inds.append(ind)
+
+        person_input = torch.concat(person_crops).to(self.device)
+        faces_input = torch.concat(faces_crops).to(self.device)
 
         if faces_input is None and person_input is None:
             # nothing to process
-            return detected_bboxes
+            return None
 
         if self.meta.with_persons_model:
             model_input = torch.cat((faces_input, person_input), dim=1)
         else:
             model_input = faces_input
-        output = self.inference(model_input)
+        
+        output, pre_logits = self.inference(model_input, keep_pre_logits)
 
-        # write gender and age results into detected_bboxes
-        self.fill_in_results(output, detected_bboxes, faces_inds, bodies_inds)
-        return detected_bboxes
+        # write gender and age results
+        results = self.fill_in_results(output, inds, len(bboxes))
 
-    def fill_in_results(self, output, detected_bboxes, faces_inds, bodies_inds):
+        if keep_pre_logits:
+            return *results, pre_logits
+        else:
+            return results
+
+
+    def fill_in_results(self, output, inds, length) -> Tuple[List[int], List[str], List[float]]:
+        ages = [None for _ in range(length)]
+        genders = [None for _ in range(length)]
+        gender_scores = [None for _ in range(length)]
+
         if self.meta.only_age:
             age_output = output
             gender_probs, gender_indx = None, None
@@ -181,45 +218,27 @@ class MiVOLO:
             gender_output = output[:, :2].softmax(-1)
             gender_probs, gender_indx = gender_output.topk(1)
 
-        assert output.shape[0] == len(faces_inds) == len(bodies_inds)
+        assert output.shape[0] == len(inds)
 
         # per face
         for index in range(output.shape[0]):
-            face_ind = faces_inds[index]
-            body_ind = bodies_inds[index]
+            ind = inds[index]
 
             # get_age
             age = age_output[index].item()
             age = age * (self.meta.max_age - self.meta.min_age) + self.meta.avg_age
             age = round(age, 2)
 
-            detected_bboxes.set_age(face_ind, age)
-            detected_bboxes.set_age(body_ind, age)
-
-            get_root_logger().info(f"\tage: {age}")
+            ages[ind] = age
 
             if gender_probs is not None:
                 gender = "male" if gender_indx[index].item() == 0 else "female"
                 gender_score = gender_probs[index].item()
 
-                get_root_logger().info(f"\tgender: {gender} [{int(gender_score * 100)}%]")
-
-                detected_bboxes.set_gender(face_ind, gender, gender_score)
-                detected_bboxes.set_gender(body_ind, gender, gender_score)
-
-    def prepare_crops(self, image: np.ndarray, detected_bboxes: PersonAndFaceResult):
-
-        (bodies_inds, person_input), (faces_inds, faces_input) = detected_bboxes.collect_crops(
-            image, self.device, self.meta.use_person_crops, self.meta.use_face_crops,
-            target_size=self.input_size, mean=self.data_config["mean"], std=self.data_config["std"],
-        )
-
-        get_root_logger().info(
-            f"faces_input: {faces_input.shape if faces_input is not None else None}, "
-            f"person_input: {person_input.shape if person_input is not None else None}"
-        )
-
-        return faces_input, person_input, faces_inds, bodies_inds
+                genders[ind] = gender
+                gender_scores[ind] = gender_score
+        
+        return ages, genders, gender_scores
 
 
 if __name__ == "__main__":

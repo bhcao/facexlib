@@ -5,7 +5,14 @@ Modifications and additions for mivolo by / Copyright 2023, Irina Tolstykh, Maxi
 """
 
 import os
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
+import numpy as np
+import torch
+from facexlib.utils.image_dto import ImageDTO
+from facexlib.utils.misc import box_iou
+
+# because of ultralytics bug it is important to unset CUBLAS_WORKSPACE_CONFIG after the module importing
+os.unsetenv("CUBLAS_WORKSPACE_CONFIG")
 
 import timm
 
@@ -104,3 +111,102 @@ def create_model(
         load_checkpoint(model, checkpoint_path, filter_keys=filter_keys, state_dict_map=state_dict_map)
 
     return model
+
+
+def crop_object(
+    bboxes: np.ndarray, full_image: ImageDTO, ind: int, is_person: bool = False
+) -> Tuple[ImageDTO]:
+    '''
+    Crop object from image based on bboxes.
+
+    Args:
+        bboxes: Numpy array of shape (N, 10) containing N detected objects of format (face_bbox, person_bbox)
+        full_image: ImageDTO object containing full image
+        ind: Index of object to crop
+        is_person: If True, mask out faces in case of intersection.
+    '''
+
+    zero_img = ImageDTO(np.zeros((1, 1, 3), dtype=np.uint8))
+
+    IOU_THRESH = 0.000001
+    MIN_PERSON_CROP_AFTERCUT_RATIO = 0.4
+    CROP_ROUND_RATE = 0.3
+    MIN_PERSON_SIZE = 50
+
+    if is_person:
+        obj_bbox = bboxes[ind, 5:9]
+    else:
+        obj_bbox = bboxes[ind, :4]
+
+    if np.isnan(obj_bbox[0]):
+        return zero_img
+    
+    x1, y1, x2, y2 = obj_bbox.astype(int)
+    # get crop of face or person
+    if isinstance(full_image.image, torch.Tensor):
+        obj_image = full_image.image[:, y1:y2, x1:x2].clone()
+        crop_h, crop_w = obj_image.shape[1:]
+    else:
+        obj_image = full_image.image[y1:y2, x1:x2].copy()
+        crop_h, crop_w = obj_image.shape[:2]
+
+    if is_person and (crop_h < MIN_PERSON_SIZE or crop_w < MIN_PERSON_SIZE):
+        return zero_img
+
+    if not is_person:
+        return ImageDTO(obj_image)
+
+    # calc iou between obj_bbox and other bboxes
+    iou_matrix = box_iou(obj_bbox, bboxes[:, :4])
+
+    # cut out other faces in case of intersection
+    for other_ind, (det, iou) in enumerate(zip(bboxes[:, :4], iou_matrix)):
+        if iou < IOU_THRESH or np.isnan(det[0]):
+            continue
+        o_x1, o_y1, o_x2, o_y2 = det.astype(int)
+
+        # remap current_person_bbox to reference_person_bbox coordinates
+        o_x1 = max(o_x1 - x1, 0)
+        o_y1 = max(o_y1 - y1, 0)
+        o_x2 = min(o_x2 - x1, crop_w)
+        o_y2 = min(o_y2 - y1, crop_h)
+
+        if isinstance(full_image.image, torch.Tensor):
+            obj_image[:, o_y1:o_y2, o_x1:o_x2] = 0
+        else:
+            obj_image[o_y1:o_y2, o_x1:o_x2] = 0
+
+    iou_matrix = box_iou(obj_bbox, bboxes[:, 5:9])
+
+    # cut out other persons in case of intersection
+    for other_ind, (det, iou) in enumerate(zip(bboxes[:, 5:9], iou_matrix)):
+        if ind == other_ind or iou < IOU_THRESH:
+            continue
+        o_x1, o_y1, o_x2, o_y2 = det.astype(int)
+
+        # remap current_person_bbox to reference_person_bbox coordinates
+        o_x1 = max(o_x1 - x1, 0)
+        o_y1 = max(o_y1 - y1, 0)
+        o_x2 = min(o_x2 - x1, crop_w)
+        o_y2 = min(o_y2 - y1, crop_h)
+
+        if (o_y1 / crop_h) < CROP_ROUND_RATE:
+            o_y1 = 0
+        if ((crop_h - o_y2) / crop_h) < CROP_ROUND_RATE:
+            o_y2 = crop_h
+        if (o_x1 / crop_w) < CROP_ROUND_RATE:
+            o_x1 = 0
+        if ((crop_w - o_x2) / crop_w) < CROP_ROUND_RATE:
+            o_x2 = crop_w
+        
+        if isinstance(full_image.image, torch.Tensor):
+            obj_image[:, o_y1:o_y2, o_x1:o_x2] = 0
+        else:
+            obj_image[o_y1:o_y2, o_x1:o_x2] = 0
+
+    count_nonzero = np.count_nonzero if isinstance(obj_image, np.ndarray) else torch.count_nonzero
+    remain_ratio = count_nonzero(obj_image) / (obj_image.shape[0] * obj_image.shape[1] * obj_image.shape[2])
+    if remain_ratio < MIN_PERSON_CROP_AFTERCUT_RATIO:
+        return zero_img
+
+    return ImageDTO(obj_image)
