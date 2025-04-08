@@ -18,7 +18,7 @@ def init_detection_model(model_name, half=False, device=None, model_rootpath=Non
     elif model_name == 'insight_retina':
         model = InsightRetina()
     elif model_name == 'yolov8x_person_face':
-        model = YOLODetectionModel(half=half, device=device, names={0: 'person', 1: 'face'})
+        model = YOLODetectionModel(half=half, device=device, names={'person': 0, 'face': 1})
     else:
         raise NotImplementedError(f'{model_name} is not implemented.')
 

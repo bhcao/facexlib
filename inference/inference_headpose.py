@@ -2,9 +2,11 @@ import argparse
 import cv2
 import torch
 
+from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+
 from facexlib.detection import init_detection_model
 from facexlib.headpose import init_headpose_model
-from facexlib.utils.image_dto import ImageDTO, MEAN_IMG, STD_IMG
+from facexlib.utils.image_dto import ImageDTO
 from facexlib.visualization import visualize_headpose
 
 
@@ -29,7 +31,7 @@ def main(args):
         det_face = img[top:bottom, left:right, :]
         
         det_face = ImageDTO(det_face).resize((224, 224)).to_tensor(
-            mean=MEAN_IMG, std=STD_IMG, rgb2bgr=True,
+            mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD, timm_form=True, rgb2bgr=True,
         ).to(device=next(headpose_net.parameters()).device)
 
         yaw, pitch, roll = headpose_net(det_face)

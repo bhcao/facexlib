@@ -9,10 +9,10 @@ from pathlib import Path
 import torch
 import contextlib
 from copy import deepcopy
+from scipy.optimize import linear_sum_assignment
 
-from facexlib.genderage.structures import PersonAndFaceResult
 from facexlib.utils.image_dto import ImageDTO
-from facexlib.utils.misc import get_root_logger
+from facexlib.utils.misc import box_iou, get_root_logger
 
 from .yolo_blocks import (
     C2PSA,
@@ -25,7 +25,6 @@ from .yolo_blocks import (
 )
 
 from . import yolo_ops as ops
-from .yolo_results import Results
 
 from .yolo_utils import (
     fuse_conv_and_bn,
@@ -315,7 +314,7 @@ class YOLODetectionModel(torch.nn.Module):
         self,
         source: Union[str, Path, int, Image.Image, list, tuple, np.ndarray, torch.Tensor] = None,
         **kwargs: Any,
-    ) -> List[Results]:
+    ) -> List[torch.Tensor]:
 
         self.args = {**self.args, **self.overrides, **kwargs}
 
@@ -356,13 +355,59 @@ class YOLODetectionModel(torch.nn.Module):
             )
 
             results = []
-            for pred, orig_img, resized_img in zip(preds, im0s, im_re):
+            for pred, resized_img in zip(preds, im_re):
                 pred[:, :4] = resized_img.restore_keypoints(pred[:, :4])
-                results.append(Results(orig_img.image, names=self.names, boxes=pred[:, :6]))
+                results.append(pred[:, :6])
 
         return results
 
     # change name to keep the same with RetinaFace
-    def detect_faces(self, image: Union[np.ndarray, str, "Image.Image"], **kwargs) -> PersonAndFaceResult:
-        results: Results = self.predict(image, **kwargs)[0]
-        return PersonAndFaceResult(results)
+    def detect_faces(self, image: Union[np.ndarray, str, "Image.Image"], iou_thresh: float = 0.0001, **kwargs):
+        """
+        Detect faces and persons in an image then associate them if possible.
+
+        If no person class is found in the names dictionary, the function will only return the bounding boxes of the faces.
+
+        Args:
+            image (tensor | path): The input image to detect faces on.
+            iou_thresh (float, optional): The IoU threshold for face-person association.
+            **kwargs: Additional arguments for the `predict` method.
+
+        Returns:
+            (List[torch.Tensor]): The bounding boxes of the associated faces and persons in (*bbox_face, *bbox_person)
+                format. If failed to associate, the corresponding bbox will be nan.
+        """
+        assert self.names.get("face") is not None, "No face class found in names dictionary."
+
+        preds = [i.cpu().numpy() for i in self.predict(image, **kwargs)]
+        results = []
+
+        for pred in preds:
+            faces_bboxes = pred[pred[:, -1] == self.names["face"]]
+            # Score is the second last column while face_bboxes might have 6 or 7 columns
+            faces_bboxes = np.concatenate([faces_bboxes[:, :4], faces_bboxes[:, [-2]]], axis=1)
+            if self.names.get("person") is None:
+                results.append(faces_bboxes)
+                continue
+
+            persons_bboxes = pred[pred[:, -1] == self.names["person"]]
+            persons_bboxes = np.concatenate([persons_bboxes[:, :4], persons_bboxes[:, [-2]]], axis=1)
+            
+            # Assoicate faces with persons
+            cost_matrix = box_iou(persons_bboxes, faces_bboxes, over_second=True)
+            persons_inds, face_inds = linear_sum_assignment(cost_matrix, maximize=True)
+            mask = cost_matrix[persons_inds, face_inds] > iou_thresh
+            persons_inds, face_inds = persons_inds[mask], face_inds[mask]
+            associated_bboxes = np.concatenate([faces_bboxes[face_inds], persons_bboxes[persons_inds]], axis=1)
+
+            # Unassociated faces
+            faces_only_inds = [f_ind for f_ind in range(len(faces_bboxes)) if f_ind not in face_inds]
+            faces_only_bboxes = np.concatenate([faces_bboxes[faces_only_inds], np.full((len(faces_only_inds), 5), np.nan)], axis=1)
+
+            # Unassociated persons
+            persons_only_inds = [p_ind for p_ind in range(len(persons_bboxes)) if p_ind not in persons_inds]
+            persons_only_bboxes = np.concatenate([np.full((len(persons_only_inds), 5), np.nan), persons_bboxes[persons_only_inds]], axis=1)
+
+            results.append(np.concatenate([associated_bboxes, faces_only_bboxes, persons_only_bboxes], axis=0))
+
+        return results

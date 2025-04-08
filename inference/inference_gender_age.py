@@ -11,8 +11,8 @@ def main(args):
 
     img = cv2.imread(args.img_path)
     with torch.no_grad():
-        detected_objects = det_net.detect_faces(img)
-        genderage_net.predict(img, detected_objects)
+        bboxes = det_net.detect_faces(img)
+        detected_objects = genderage_net.predict(img, bboxes)
         print(detected_objects.ages, detected_objects.genders)
 
 

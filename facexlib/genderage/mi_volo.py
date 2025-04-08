@@ -1,13 +1,12 @@
-import logging
 from typing import Optional
 import numpy as np
 import torch
-from facexlib.genderage.misc import prepare_classification_images
+
+from facexlib.utils.misc import get_root_logger
 from facexlib.genderage.utils import create_model
-from facexlib.genderage.structures import PersonAndFaceCrops, PersonAndFaceResult
+from facexlib.genderage.structures import PersonAndFaceResult
 from timm.data import resolve_data_config
 
-_logger = logging.getLogger("MiVOLO")
 has_compile = hasattr(torch, "compile")
 
 
@@ -89,7 +88,7 @@ class MiVOLO:
 
         self.meta: Meta = Meta().load_from_ckpt(ckpt_path, disable_faces, use_persons)
         if self.verbose:
-            _logger.info(f"Model meta:\n{str(self.meta)}")
+            get_root_logger().info(f"Model meta:\n{str(self.meta)}")
 
         model_name = f"mivolo_d1_{self.meta.input_size}"
         self.model = create_model(
@@ -101,7 +100,7 @@ class MiVOLO:
             filter_keys=["fds."],
         )
         self.param_count = sum([m.numel() for m in self.model.parameters()])
-        _logger.info(f"Model {model_name} created, param count: {self.param_count}")
+        get_root_logger().info(f"Model {model_name} created, param count: {self.param_count}")
 
         self.data_config = resolve_data_config(
             model=self.model,
@@ -147,20 +146,21 @@ class MiVOLO:
             output = self.model(model_input)
         return output
 
-    def predict(self, image: np.ndarray, detected_bboxes: PersonAndFaceResult):
+    def predict(self, image: np.ndarray, detected_bboxes):
+        detected_bboxes = PersonAndFaceResult(detected_bboxes[0])
         if (
             (detected_bboxes.n_objects == 0)
             or (not self.meta.use_persons and detected_bboxes.n_faces == 0)
             or (self.meta.disable_faces and detected_bboxes.n_persons == 0)
         ):
             # nothing to process
-            return
+            return detected_bboxes
 
         faces_input, person_input, faces_inds, bodies_inds = self.prepare_crops(image, detected_bboxes)
 
         if faces_input is None and person_input is None:
             # nothing to process
-            return
+            return detected_bboxes
 
         if self.meta.with_persons_model:
             model_input = torch.cat((faces_input, person_input), dim=1)
@@ -170,6 +170,7 @@ class MiVOLO:
 
         # write gender and age results into detected_bboxes
         self.fill_in_results(output, detected_bboxes, faces_inds, bodies_inds)
+        return detected_bboxes
 
     def fill_in_results(self, output, detected_bboxes, faces_inds, bodies_inds):
         if self.meta.only_age:
@@ -195,42 +196,25 @@ class MiVOLO:
             detected_bboxes.set_age(face_ind, age)
             detected_bboxes.set_age(body_ind, age)
 
-            _logger.info(f"\tage: {age}")
+            get_root_logger().info(f"\tage: {age}")
 
             if gender_probs is not None:
                 gender = "male" if gender_indx[index].item() == 0 else "female"
                 gender_score = gender_probs[index].item()
 
-                _logger.info(f"\tgender: {gender} [{int(gender_score * 100)}%]")
+                get_root_logger().info(f"\tgender: {gender} [{int(gender_score * 100)}%]")
 
                 detected_bboxes.set_gender(face_ind, gender, gender_score)
                 detected_bboxes.set_gender(body_ind, gender, gender_score)
 
     def prepare_crops(self, image: np.ndarray, detected_bboxes: PersonAndFaceResult):
 
-        if self.meta.use_person_crops and self.meta.use_face_crops:
-            detected_bboxes.associate_faces_with_persons()
-
-        crops: PersonAndFaceCrops = detected_bboxes.collect_crops(image)
-        (bodies_inds, bodies_crops), (faces_inds, faces_crops) = crops.get_faces_with_bodies(
-            self.meta.use_person_crops, self.meta.use_face_crops
+        (bodies_inds, person_input), (faces_inds, faces_input) = detected_bboxes.collect_crops(
+            image, self.device, self.meta.use_person_crops, self.meta.use_face_crops,
+            target_size=self.input_size, mean=self.data_config["mean"], std=self.data_config["std"],
         )
 
-        if not self.meta.use_face_crops:
-            assert all(f is None for f in faces_crops)
-
-        faces_input = prepare_classification_images(
-            faces_crops, self.input_size, self.data_config["mean"], self.data_config["std"], device=self.device
-        )
-
-        if not self.meta.use_person_crops:
-            assert all(p is None for p in bodies_crops)
-
-        person_input = prepare_classification_images(
-            bodies_crops, self.input_size, self.data_config["mean"], self.data_config["std"], device=self.device
-        )
-
-        _logger.info(
+        get_root_logger().info(
             f"faces_input: {faces_input.shape if faces_input is not None else None}, "
             f"person_input: {person_input.shape if person_input is not None else None}"
         )

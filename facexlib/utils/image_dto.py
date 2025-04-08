@@ -10,10 +10,6 @@ import torchvision.transforms._functional_tensor as F_t
 
 from timm.layers import to_2tuple, to_3tuple
 
-# ImageNet mean and std
-MEAN_IMG = [123.675, 116.28, 103.53]
-STD_IMG = [58.395, 57.12, 57.375]
-
 class ImageDTO:
     def __init__(self, image: Union[Image.Image, np.ndarray, str, Path, torch.Tensor, "ImageDTO"],
                  bgr2rgb=True, min_max=(-1, 1), keep_tensor=True):
@@ -178,6 +174,8 @@ class ImageDTO:
                 result.image = F_v.pad(self.image, (left, top, right, bottom), fill=fill / 127.5 - 1.0)
             else:
                 result.image = cv2.copyMakeBorder(self.image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=fill)
+        else:
+            result.image = self.image
         
         result.scale = self.scale
         result.left_top = (self.left_top[0] + left, self.left_top[1] + top)
@@ -235,7 +233,7 @@ class ImageDTO:
         return result
 
 
-    def to_tensor(self, rgb2bgr=False, mean=0.0, std=255.0) -> torch.Tensor:
+    def to_tensor(self, rgb2bgr=False, mean=0.0, std=255.0, timm_form=False) -> torch.Tensor:
         """
         Convert the image data to a tensor. Normalize to range (0, 1) by default.
 
@@ -243,12 +241,17 @@ class ImageDTO:
             rgb2bgr (bool): Whether to change RGB to BGR. Set to True if your model is trained with BGR format.
             mean (list, optional): The mean values for normalization.
             std (list, optional): The std values for normalization.
+            timm_form (bool): Whether the mean and std values are in range (0, 1) like in timm.
 
         Returns:
             The image data in tensor format and the resize ratio if size is not None.
         """
         mean = to_3tuple(mean)
         std = to_3tuple(std)
+
+        if timm_form:
+            mean = tuple(i * 255.0 for i in mean)
+            std = tuple(i * 255.0 for i in std)
 
         # convert image to tensor or use the kept tensor
         if isinstance(self.image, torch.Tensor):
@@ -279,6 +282,8 @@ class ImageDTO:
         Returns:
             The bounding boxes or landmarks in the original image.
         """
+        # Avoid `input tensor and written-to tensor refer to a single memory` error
+        keypoints = keypoints.clone()
 
         reshaped = False
         if len(keypoints.shape) == 2:
