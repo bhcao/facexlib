@@ -20,6 +20,7 @@ MODEL_ZOO = {
     'arcface': 'https://github.com/xinntao/facexlib/releases/download/v0.1.0/recognition_arcface_ir_se50.pth',
     'antelopev2': 'https://github.com/bhcao/facexlib/releases/download/v0.3.2/antelopev2.pth',
     'buffalo_l': 'https://github.com/bhcao/facexlib/releases/download/v0.3.2/buffalo_l.pth',
+    'SwinIR_x2': 'https://github.com/bhcao/facexlib/releases/download/v0.3.4/SwinIR_x2.pth',
     'HAT-S_x2': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT-S_SRx2.pth',
     'HAT-S_x4': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT-S_SRx4.pth',
     'HAT_x2': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT_SRx2_ImageNet-pretrain.pth',

@@ -61,7 +61,7 @@ NETWORK_G_CONFIG = {
 }
 
 class HATModel(SRModel):
-    def __init__(self, model_type, scale=1, tile_pad=None, tile_size=None, **kwargs):
+    def __init__(self, model_type, scale=1, **kwargs):
         net_work_config = deepcopy(NETWORK_G_CONFIG[model_type])
         net_g = HAT(upscale=scale, **net_work_config)
         super(HATModel, self).__init__(net_g, **kwargs)
@@ -69,8 +69,6 @@ class HATModel(SRModel):
         # store for later use
         self.window_size = net_work_config['window_size']
         self.scale = scale
-        self.tile_pad = tile_pad
-        self.tile_size = tile_size
 
     def pre_process(self):
         # pad to multiplication of window_size
@@ -94,7 +92,7 @@ class HATModel(SRModel):
                 self.output = self.net_g(self.img)
             # self.net_g.train()
 
-    def tile_process(self):
+    def tile_process(self, tile_size, tile_pad):
         """It will first crop input images to tiles, and then process each tile.
         Finally, all the processed tiles are merged into one images.
         Modified from: https://github.com/ata4/esrgan-launcher
@@ -106,26 +104,26 @@ class HATModel(SRModel):
 
         # start with black image
         self.output = self.img.new_zeros(output_shape)
-        tiles_x = math.ceil(width / self.tile_size)
-        tiles_y = math.ceil(height / self.tile_size)
+        tiles_x = math.ceil(width / tile_size)
+        tiles_y = math.ceil(height / tile_size)
 
         # loop over all tiles
         for y in range(tiles_y):
             for x in range(tiles_x):
                 # extract tile from input image
-                ofs_x = x * self.tile_size
-                ofs_y = y * self.tile_size
+                ofs_x = x * tile_size
+                ofs_y = y * tile_size
                 # input tile area on total image
                 input_start_x = ofs_x
-                input_end_x = min(ofs_x + self.tile_size, width)
+                input_end_x = min(ofs_x + tile_size, width)
                 input_start_y = ofs_y
-                input_end_y = min(ofs_y + self.tile_size, height)
+                input_end_y = min(ofs_y + tile_size, height)
 
                 # input tile area on total image with padding
-                input_start_x_pad = max(input_start_x - self.tile_pad, 0)
-                input_end_x_pad = min(input_end_x + self.tile_pad, width)
-                input_start_y_pad = max(input_start_y - self.tile_pad, 0)
-                input_end_y_pad = min(input_end_y + self.tile_pad, height)
+                input_start_x_pad = max(input_start_x - tile_pad, 0)
+                input_end_x_pad = min(input_end_x + tile_pad, width)
+                input_start_y_pad = max(input_start_y - tile_pad, 0)
+                input_end_y_pad = min(input_end_y + tile_pad, height)
 
                 # input tile dimensions
                 input_tile_width = input_end_x - input_start_x
@@ -168,12 +166,12 @@ class HATModel(SRModel):
         _, _, h, w = self.output.size()
         self.output = self.output[:, :, 0:h - self.mod_pad_h * self.scale, 0:w - self.mod_pad_w * self.scale]
 
-    def inference(self, image: np.ndarray | Image.Image):
+    def inference(self, image: np.ndarray | Image.Image, tile_size=None, tile_pad=None):
         self.lq = ImageDTO(image).to_tensor().to(device=self.device, dtype=self.dtype)
 
         self.pre_process()
-        if self.tile_size is not None and self.tile_pad is not None:
-            self.tile_process()
+        if tile_size is not None and tile_pad is not None:
+            self.tile_process(tile_size, tile_pad)
         else:
             self.process()
         self.post_process()
@@ -185,4 +183,4 @@ class HATModel(SRModel):
         del self.output
         torch.cuda.empty_cache()
 
-        return ImageDTO(visuals['result'], min_max=(0, 1), keep_tensor=False).image
+        return ImageDTO(visuals['result'], min_max=(0, 1))

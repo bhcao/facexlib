@@ -5,6 +5,8 @@ import numpy as np
 import torch
 import warnings
 
+from facexlib.utils.image_dto import ImageDTO
+
 initialized_logger = {}
 
 # modified from basicsr.utils
@@ -60,10 +62,9 @@ def imwrite(img, file_path, params=None, auto_mkdir=True):
     Returns:
         bool: Successful or not.
     """
-    if auto_mkdir:
-        dir_name = os.path.abspath(os.path.dirname(file_path))
-        os.makedirs(dir_name, exist_ok=True)
-    return cv2.imwrite(file_path, img, params)
+    warnings.warn("imwrite is deprecated, use ImageDTO.save instead", DeprecationWarning)
+
+    return ImageDTO(img).save(file_path, params, auto_mkdir)
 
 
 def img2tensor(imgs, bgr2rgb=True, float32=True):

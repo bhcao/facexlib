@@ -5,7 +5,8 @@ import torch
 
 from facexlib.detection import init_detection_model
 from facexlib.parsing import init_parsing_model
-from facexlib.utils.misc import imwrite, box_iou
+from facexlib.utils.image_dto import ImageDTO
+from facexlib.utils.misc import box_iou
 
 
 def get_largest_face(det_faces, h, w):
@@ -288,7 +289,7 @@ class FaceRestoreHelper(object):
             if save_cropped_path is not None:
                 path = os.path.splitext(save_cropped_path)[0]
                 save_path = f'{path}_{idx:02d}.{self.save_ext}'
-                imwrite(cropped_face, save_path)
+                ImageDTO(cropped_face).save(save_path)
 
     def get_inverse_affine(self, save_inverse_affine_path=None):
         """Get inverse affine matrix."""
@@ -384,7 +385,7 @@ class FaceRestoreHelper(object):
         if save_path is not None:
             path = os.path.splitext(save_path)[0]
             save_path = f'{path}.{self.save_ext}'
-            imwrite(upsample_img, save_path)
+            ImageDTO(upsample_img).save(save_path)
         return upsample_img
 
     def clean_all(self):

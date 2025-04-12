@@ -33,12 +33,12 @@
 | [抠图](facexlib/matting/README.md) | [MODNet](https://github.com/ZHKKKe/MODNet) | CC 4.0 |
 | [头部姿态](facexlib/headpose/README.md) | [deep-head-pose](https://github.com/natanielruiz/deep-head-pose) | Apache 2.0  |
 | [跟踪](facexlib/tracking/README.md) |  [SORT](https://github.com/abewley/sort) | GPL 3.0 |
-| [超分](facexlib/resolution/README.md) | [HAT](https://github.com/XPixelGroup/HAT) | - |
+| [超分](facexlib/resolution/README.md) | [HAT](https://github.com/XPixelGroup/HAT) 和 [SwinIR](https://github.com/JingyunLiang/SwinIR) | - |
 | [性别与年龄](facexlib/genderage/README.md) | [MiVOLO](https://github.com/WildChlamydia/MiVOLO) | - |
 | [评估](facexlib/assessment/README.md) | [hyperIQA](https://github.com/SSL92/hyperIQA) | - |
 | [工具](facexlib/utils/README.md) | Face Restoration Helper | - |
 
-> *TODO*: 微调超分模型以适应人脸任务。
+> *注意：HAT 尚未在真实世界的面部数据集上进行微调，且在实际使用中不够稳定。SwinIR 在 [FaceID-6M](https://github.com/ShuheSH/FaceID-6M) 上使用 RealESRGAN 退化进行了微调。我们建议使用 SwinIR 进行超分辨率任务。*
 
 ## :eyes: 演示和教程
 

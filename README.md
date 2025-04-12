@@ -33,12 +33,12 @@ If facexlib is helpful in your projects, please help to :star: this repo. Thanks
 | [Matting](facexlib/matting/README.md) | [MODNet](https://github.com/ZHKKKe/MODNet) | CC 4.0 |
 | [Headpose](facexlib/headpose/README.md) | [deep-head-pose](https://github.com/natanielruiz/deep-head-pose) | Apache 2.0  |
 | [Tracking](facexlib/tracking/README.md) |  [SORT](https://github.com/abewley/sort) | GPL 3.0 |
-| [Super Resolution](facexlib/resolution/README.md) | [HAT](https://github.com/XPixelGroup/HAT) | - |
+| [Super Resolution](facexlib/resolution/README.md) | [HAT](https://github.com/XPixelGroup/HAT) and [SwinIR](https://github.com/JingyunLiang/SwinIR) | - |
 | [Gender & Age](facexlib/genderage/README.md) | [MiVOLO](https://github.com/WildChlamydia/MiVOLO) | - |
 | [Assessment](facexlib/assessment/README.md) | [hyperIQA](https://github.com/SSL92/hyperIQA) | - |
 | [Utils](facexlib/utils/README.md) | Face Restoration Helper | - |
 
-> *TODO*: Finetune super resolution model for face tasks.
+> *Note: HAT haven't been finetuned on real-world facial datasets and is not stable enough for practical use. SwinIR is fine-tuned on [FaceID-6M](https://github.com/ShuheSH/FaceID-6M) using RealESRGAN degradation. We suggest using SwinIR for super-resolution tasks.*
 
 ## :eyes: Demo and Tutorials
 
