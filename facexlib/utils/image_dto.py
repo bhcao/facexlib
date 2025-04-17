@@ -314,7 +314,7 @@ class ImageDTO:
             The bounding boxes or landmarks in the original image.
         """
         # Avoid `input tensor and written-to tensor refer to a single memory` error
-        keypoints = keypoints.clone()
+        keypoints = keypoints.clone() if isinstance(keypoints, torch.Tensor) else np.copy(keypoints)
         if len(keypoints) == 0:
             return keypoints
 

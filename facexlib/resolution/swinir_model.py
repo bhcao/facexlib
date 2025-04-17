@@ -2,10 +2,10 @@
 
 from copy import deepcopy
 import torch
+import torch.nn as nn
 
 from typing import Tuple, Callable, Literal
 
-import torch
 import numpy as np
 from tqdm import tqdm
 
@@ -144,21 +144,14 @@ NETWORK_G_CONFIG = {
 }
 
 
-class SwinIRModel:
-    def __init__(self, weight, model_type="SwinIR", upscale=2, device="cuda"):
+class SwinIRModel(nn.Module):
+    def __init__(self, model_type="SwinIR", upscale=2, device="cuda"):
+        super().__init__()
         net_work_config = deepcopy(NETWORK_G_CONFIG[model_type])
         self.model = SwinIR(sf=upscale, **net_work_config)
 
-        weight = torch.load(weight, map_location='cpu')['params_ema']
-        for k, v in deepcopy(weight).items():
-            if k.startswith('module.'):
-                weight[k[7:]] = v
-                weight.pop(k)
-
         self.upscale = upscale
         self.device = device
-        self.model.load_state_dict(weight, strict=True)
-        self.model.eval().to(device)
     
     def inference(self, lq, tile_size=None, tile_pad=None):
         lq = ImageDTO(lq)

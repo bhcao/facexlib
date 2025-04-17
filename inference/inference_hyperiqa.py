@@ -6,8 +6,7 @@ import torch
 import torchvision
 from PIL import Image
 
-from facexlib.assessment import init_assessment_model
-from facexlib.detection import init_detection_model
+from facexlib.utils import build_model
 
 
 def main(args):
@@ -17,8 +16,8 @@ def main(args):
         2) evaluate the face quality by hyperIQA
     """
     # initialize model
-    det_net = init_detection_model(args.detection_model_name, half=False)
-    assess_net = init_assessment_model(args.assess_model_name, half=False)
+    det_net = build_model(args.detection_model_name, half=False)
+    assess_net = build_model(args.assess_model_name, half=False)
 
     # specified face transformation in original hyperIQA
     transforms = torchvision.transforms.Compose([
@@ -43,7 +42,7 @@ def main(args):
             detect_face = Image.fromarray(detect_face)
 
             detect_face = transforms(detect_face)
-            detect_face = torch.tensor(detect_face.cuda()).unsqueeze(0)
+            detect_face = detect_face.cuda().clone().detach().unsqueeze(0)
 
             pred = assess_net(detect_face)
             pred_scores.append(float(pred.item()))

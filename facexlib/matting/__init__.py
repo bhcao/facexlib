@@ -1,28 +1,10 @@
-import torch
-from copy import deepcopy
+import warnings
 
-from facexlib.utils import load_file_from_url
+from facexlib.utils import build_model
 from .modnet import MODNet
 
 
-def init_matting_model(model_name='modnet', half=False, device=None, model_rootpath=None):
-    if device is None:
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    if model_name == 'modnet':
-        model = MODNet(backbone_pretrained=False)
-    else:
-        raise NotImplementedError(f'{model_name} is not implemented.')
-
-    model_path = load_file_from_url(model_name, save_dir=model_rootpath)
-    # TODO: clean pretrained model
-    load_net = torch.load(model_path, map_location=lambda storage, loc: storage)
-    # remove unnecessary 'module.'
-    for k, v in deepcopy(load_net).items():
-        if k.startswith('module.'):
-            load_net[k[7:]] = v
-            load_net.pop(k)
-    model.load_state_dict(load_net, strict=True)
-    model.eval()
-    model = model.to(device)
-    return model
+def init_matting_model(model_name='modnet', half=False, device=None, model_rootpath=None) -> MODNet:
+    warnings.warn('init_matting_model is deprecated, use build_model instead.', FutureWarning)
+    assert model_name in ['modnet'], f'Please use build_model to initialize other models.'
+    return build_model(model_name, half=half, device=device, save_dir=model_rootpath, singleton=False, auto_download=True)

@@ -1,58 +1,95 @@
+import importlib
+import inspect
 import os
+from pathlib import Path
+import torch
 from torch.hub import download_url_to_file
 from urllib.parse import urlparse
+import yaml
 
-DEFAULT_SAVE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'weights')
+DEFAULT_SAVE_DIR = Path(__file__).absolute().parent.parent / 'weights'
+MODEL_ZOO = yaml.load(open(Path(__file__).absolute().parent / 'model_zoo.yaml', 'r'), Loader=yaml.FullLoader)
 
-MODEL_ZOO = {
-    'awing_fan': 'https://github.com/xinntao/facexlib/releases/download/v0.1.0/alignment_WFLW_4HG.pth',
-    'hypernet': 'https://github.com/xinntao/facexlib/releases/download/v0.2.0/assessment_hyperIQA.pth',
-    'retinaface_resnet50': 'https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth',
-    'retinaface_mobile0.25': 'https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_mobilenet0.25_Final.pth',
-    'insight_retina': 'https://github.com/bhcao/facexlib/releases/download/v0.3.2/insight_retina.pth',
-    'yolov8x_person_face': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/yolov8x_person_face.pth',
-    'volo_d1': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/model_utk_age_gender_4.23_97.69.pth.tar',
-    'mivolo_d1': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/model_imdb_cross_person_4.22_99.46.pth.tar',
-    'hopenet': 'https://github.com/xinntao/facexlib/releases/download/v0.2.0/headpose_hopenet.pth',
-    'modnet': 'https://github.com/xinntao/facexlib/releases/download/v0.2.0/matting_modnet_portrait.pth',
-    'bisenet': 'https://github.com/xinntao/facexlib/releases/download/v0.2.0/parsing_bisenet.pth',
-    'parsenet': 'https://github.com/xinntao/facexlib/releases/download/v0.2.2/parsing_parsenet.pth',
-    'arcface': 'https://github.com/xinntao/facexlib/releases/download/v0.1.0/recognition_arcface_ir_se50.pth',
-    'antelopev2': 'https://github.com/bhcao/facexlib/releases/download/v0.3.2/antelopev2.pth',
-    'buffalo_l': 'https://github.com/bhcao/facexlib/releases/download/v0.3.2/buffalo_l.pth',
-    'SwinIR_x2': 'https://github.com/bhcao/facexlib/releases/download/v0.3.4/SwinIR_x2.pth',
-    'HAT-S_x2': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT-S_SRx2.pth',
-    'HAT-S_x4': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT-S_SRx4.pth',
-    'HAT_x2': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT_SRx2_ImageNet-pretrain.pth',
-    'HAT_x4': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT_SRx4_ImageNet-pretrain.pth',
-    'HAT-L_x2': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT-L_SRx2_ImageNet-pretrain.pth',
-    'HAT-L_x4': 'https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT-L_SRx4_ImageNet-pretrain.pth',
-}
+__cached_models = {}
 
-def load_file_from_url(model_name_or_url, progress=True, file_name=None, save_dir=None):
-    """Ref:https://github.com/1adrianb/face-alignment/blob/master/face_alignment/utils.py
+def build_model(model_name, progress=True, file_name=None, save_dir=None, half=False, device=None, singleton=True, auto_download=False):
+    """Build a model from a given url.
 
-    Set os.environ['BLOCK_DOWNLOADING'] == 'false' to cancel block downloading.
+    Args:
+        model_name (str): The name of the model in the model zoo.
+        progress (bool, optional): Whether to show the progress of downloading. Defaults to True.
+        file_name (str, optional): The name of the downloaded file. Defaults to the same as the url.
+        save_dir (str, optional): The directory to save the downloaded file. Defaults to `facexlib/weights`.
+        half (bool, optional): Whether to use half precision. Only works for models support half initialization.
+        device (str, optional): The device to load the model. Defaults to 'cuda' if available, otherwise 'cpu'.
+        singleton (bool, optional): Whether to return a singleton model or a list of models. Defaults to True.
+        auto_download (bool, optional): Whether to automatically download the model if it does not exist.
+
+    Returns:
+        The built model.
     """
+    if singleton and hasattr(__cached_models, model_name):
+        return __cached_models[model_name]
 
-    if model_name_or_url.startswith('http://') or model_name_or_url.startswith('https://'):
-        url = model_name_or_url
-    else:
-        url = MODEL_ZOO[model_name_or_url]
+    if model_name not in MODEL_ZOO:
+        raise NotImplementedError(f'{model_name} is not implemented.')
 
-    if save_dir is None:
-        save_dir = DEFAULT_SAVE_DIR
-    os.makedirs(save_dir, exist_ok=True)
+    # get the model information from the model zoo
+    model_dict = MODEL_ZOO[model_name]
+    target = model_dict['target']
+    url = model_dict['url']
+    param_key = model_dict.get('param_key', None)
+    param_prefix = model_dict.get('param_prefix', None)
+    load_module = model_dict.get('load_module', None)
+    args = model_dict.get('args', [])
+    kwargs = model_dict.get('kwargs', {})
 
-    parts = urlparse(url)
-    filename = os.path.basename(parts.path)
-    if file_name is not None:
-        filename = file_name
-    cached_file = os.path.abspath(os.path.join(save_dir, filename))
-    if not os.path.exists(cached_file):
-        block_downloading = os.environ.get('BLOCK_DOWNLOADING', 'true')
-        if block_downloading.lower() == 'true':
+    if device is None:
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    # load the model class
+    package_name, class_name = target.rsplit('.', 1)
+    target_class = getattr(importlib.import_module(package_name), class_name)
+
+    # create the save directory if not exists
+    save_dir = Path(DEFAULT_SAVE_DIR if save_dir is None else save_dir)
+    save_dir.mkdir(exist_ok=True)
+
+    # download the model weights
+    filename = os.path.basename(urlparse(url).path) if file_name is None else file_name
+    cached_file = save_dir.absolute() / filename
+    if not cached_file.exists():
+        if not auto_download:
             raise RuntimeError(f'{cached_file} does not exist. Please download it manually from {url}')
         print(f'Downloading: "{url}" to {cached_file}\n')
         download_url_to_file(url, cached_file, hash_prefix=None, progress=progress)
-    return cached_file
+
+    # load the model parameters
+    if param_key is not None:
+        state_dict = torch.load(cached_file, weights_only=True)[param_key]
+    else:
+        state_dict = torch.load(cached_file, weights_only=True)
+    if param_prefix is not None:
+        state_dict = {k[len(param_prefix):]: v for k, v in state_dict.items() if k.startswith(param_prefix)}
+    
+    # create the model instance
+    init_params = inspect.signature(target_class.__init__).parameters.keys()
+    if 'device' in init_params:
+        kwargs['device'] = device
+    if 'half' in init_params:
+        kwargs['half'] = half
+    model = target_class(*args, **kwargs)
+    if load_module is not None:
+        getattr(model, load_module).load_state_dict(state_dict, strict=True)
+    else:
+        model.load_state_dict(state_dict, strict=True)
+    model.eval()
+    model.to(device)
+
+    # fuse conv and bn
+    if hasattr(model, 'fuse'):
+        model.fuse()
+
+    if singleton:
+        __cached_models[model_name] = model
+    return model

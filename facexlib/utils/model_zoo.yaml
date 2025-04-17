@@ -1,0 +1,142 @@
+awing_fan:
+  target: facexlib.alignment.awing_arch.FAN
+  url: https://github.com/xinntao/facexlib/releases/download/v0.1.0/alignment_WFLW_4HG.pth
+  param_key: state_dict
+  kwargs:
+    num_modules: 4
+    num_landmarks: 98
+
+hypernet:
+  target: facexlib.assessment.hyperiqa_net.HyperIQA
+  url: https://github.com/xinntao/facexlib/releases/download/v0.2.0/assessment_hyperIQA.pth
+  load_module: hypernet
+  args: [16, 112, 224, 112, 56, 28, 14, 7]
+
+retinaface_resnet50:
+  target: facexlib.detection.retinaface.RetinaFace
+  url: https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth
+  param_prefix: module.
+  kwargs:
+    network_name: resnet50
+
+retinaface_mobile0.25:
+  target: facexlib.detection.retinaface.RetinaFace
+  url: https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_mobilenet0.25_Final.pth
+  kwargs:
+    network_name: mobile0.25
+
+insight_retina:
+  target: facexlib.detection.insight_retina.InsightRetina
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.2/insight_retina.pth
+
+yolov8x_person_face:
+  target: facexlib.detection.yolo_model.YOLODetectionModel
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/yolov8x_person_face.pth
+  kwargs:
+    names: {'person': 0, 'face': 1}
+
+# TODO
+volo_d1:
+  target: facexlib.genderage.mi_volo.MiVOLO
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/model_utk_age_gender_4.23_97.69.pth
+
+# TODO
+mivolo_d1:
+  target: facexlib.genderage.mi_volo.MiVOLO
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/model_imdb_cross_person_4.22_99.46.pth
+
+hopenet:
+  target: facexlib.headpose.hopenet_arch.HopeNet
+  url: https://github.com/xinntao/facexlib/releases/download/v0.2.0/headpose_hopenet.pth
+  param_key: params
+  kwargs:
+    block: resnet
+    layers: [3, 4, 6, 3]
+    num_bins: 66
+
+modnet:
+  target: facexlib.matting.modnet.MODNet
+  url: https://github.com/xinntao/facexlib/releases/download/v0.2.0/matting_modnet_portrait.pth
+  param_prefix: module.
+  kwargs:
+    backbone_pretrained: False
+
+bisenet:
+  target: facexlib.parsing.bisenet.BiSeNet
+  url: https://github.com/xinntao/facexlib/releases/download/v0.2.0/parsing_bisenet.pth
+  kwargs:
+    num_class: 19
+
+parsenet:
+  target: facexlib.parsing.parsenet.ParseNet
+  url: https://github.com/xinntao/facexlib/releases/download/v0.2.2/parsing_parsenet.pth
+  kwargs:
+    in_size: 512
+    out_size: 512
+    parsing_ch: 19
+
+# TODO
+arcface:
+  target: facexlib.recognition.arcface_arch.Backbone
+  url: https://github.com/xinntao/facexlib/releases/download/v0.1.0/recognition_arcface_ir_se50.pth
+  kwargs:
+    num_layers: 50
+    drop_ratio: 0.6
+    mode: ir_se
+
+antelopev2:
+  target: facexlib.recognition.arcface_official.ArcFace
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.2/antelopev2.pth
+  kwargs:
+    layer_num: [3, 13, 30, 3]
+
+buffalo_l:
+  target: facexlib.recognition.arcface_official.ArcFace
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.2/buffalo_l.pth
+  kwargs:
+    layer_num: [3, 4, 14, 3]
+
+SwinIR_x2:
+  target: facexlib.resolution.swinir_model.SwinIRModel
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.4/SwinIR_x2.pth
+  param_key: params_ema
+  load_module: model
+  kwargs:
+    model_type: SwinIR
+    upscale: 2
+
+HAT_x2:
+  target: facexlib.resolution.hat_model.HATModel
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT_SRx2_ImageNet-pretrain.pth
+  param_key: params_ema
+  load_module: net_g
+  kwargs:
+    model_type: HAT
+    scale: 2
+
+HAT_x4:
+  target: facexlib.resolution.hat_model.HATModel
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT_SRx4_ImageNet-pretrain.pth
+  param_key: params_ema
+  load_module: net_g
+  kwargs:
+    model_type: HAT
+    scale: 4
+
+HAT-L_x2:
+  target: facexlib.resolution.hat_model.HATModel
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT-L_SRx2_ImageNet-pretrain.pth
+  param_key: params_ema
+  load_module: net_g
+  kwargs:
+    model_type: HAT-L
+    scale: 2
+
+HAT-L_x4:
+  target: facexlib.resolution.hat_model.HATModel
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT-L_SRx4_ImageNet-pretrain.pth
+  param_key: params_ema
+  load_module: net_g
+  kwargs:
+    model_type: HAT-L
+    scale: 4

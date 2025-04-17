@@ -6,7 +6,7 @@ import os
 import torch
 from tqdm import tqdm
 
-from facexlib.detection import init_detection_model
+from facexlib.utils import build_model
 from facexlib.tracking.sort import SORT
 
 def main(args):
@@ -19,7 +19,7 @@ def main(args):
         colors = np.random.rand(32, 3)
 
     # init detection model and tracker
-    det_net = init_detection_model('retinaface_resnet50', half=False)
+    det_net = build_model('retinaface_resnet50', half=False)
     tracker = SORT(max_age=1, min_hits=2, iou_threshold=0.2)
     print('Start track...')
 

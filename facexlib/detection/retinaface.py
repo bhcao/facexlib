@@ -271,7 +271,7 @@ class RetinaFace(nn.Module):
         return self.__align_multi(img, boxes, landmarks, limit)
 
     def batched_detect_faces(self, frames, conf_threshold=0.8, nms_threshold=0.4, use_origin_size=True):
-        warnings.warn('This function is deprecated, use detect_faces instead.', DeprecationWarning)
+        warnings.warn('This function is deprecated, use detect_faces instead.', FutureWarning)
 
         results = self.detect_faces(frames, conf_threshold=conf_threshold, nms_threshold=nms_threshold, 
                                     use_origin_size=use_origin_size)

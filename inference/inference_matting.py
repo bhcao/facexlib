@@ -3,12 +3,11 @@ import cv2
 import numpy as np
 import torch.nn.functional as F
 
-from facexlib.matting import init_matting_model
-from facexlib.utils.image_dto import ImageDTO
+from facexlib.utils import build_model, ImageDTO
 
 
 def main(args):
-    modnet = init_matting_model()
+    modnet = build_model('modnet')
 
     img = ImageDTO(args.img_path)
     img_t = img.to_tensor(mean=127.5, std=127.5).to(device=next(modnet.parameters()).device)

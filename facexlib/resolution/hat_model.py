@@ -42,29 +42,13 @@ NETWORK_G_CONFIG = {
         "upsampler": 'pixelshuffle',
         "resi_connection": '1conv'
     },
-    'HAT-S': {
-        "in_chans": 3,
-        "img_size": 64,
-        "window_size": 16,
-        "compress_ratio": 24,
-        "squeeze_factor": 24,
-        "conv_scale": 0.01,
-        "overlap_ratio": 0.5,
-        "img_range": 1.,
-        "depths": [6, 6, 6, 6, 6, 6],
-        "embed_dim": 144,
-        "num_heads": [6, 6, 6, 6, 6, 6],
-        "mlp_ratio": 2,
-        "upsampler": 'pixelshuffle',
-        "resi_connection": '1conv'
-    }
 }
 
 class HATModel(SRModel):
-    def __init__(self, model_type, scale=1, **kwargs):
+    def __init__(self, model_type, scale=1, device='cuda', half=False, **kwargs):
         net_work_config = deepcopy(NETWORK_G_CONFIG[model_type])
         net_g = HAT(upscale=scale, **net_work_config)
-        super(HATModel, self).__init__(net_g, **kwargs)
+        super(HATModel, self).__init__(net_g, device=device, half=half, **kwargs)
 
         # store for later use
         self.window_size = net_work_config['window_size']

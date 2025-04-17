@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from tqdm import tqdm
 
-from facexlib.detection import init_detection_model
+from facexlib.utils import build_model
 
 
 def draw_and_save(image, bboxes_and_landmarks, save_path, order_type=1):
@@ -39,7 +39,7 @@ def draw_and_save(image, bboxes_and_landmarks, save_path, order_type=1):
     cv2.imwrite(save_path, image)
 
 
-det_net = init_detection_model('retinaface_resnet50')
+det_net = build_model('retinaface_resnet50')
 half = False
 
 det_net.cuda().eval()

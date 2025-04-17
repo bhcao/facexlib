@@ -211,7 +211,7 @@ def paste_face_back(img, face, inverse_affine):
 if __name__ == '__main__':
     import os
 
-    from facexlib.detection import init_detection_model
+    from facexlib.utils import build_model
     from facexlib.utils.face_restoration_helper import get_largest_face
     from facexlib.visualization import visualize_detection
 
@@ -219,7 +219,7 @@ if __name__ == '__main__':
     img_name = os.splitext(os.path.basename(img_path))[0]
 
     # initialize model
-    det_net = init_detection_model('retinaface_resnet50', half=False)
+    det_net = build_model('retinaface_resnet50', half=False)
     img_ori = cv2.imread(img_path)
     h, w = img_ori.shape[0:2]
     # if larger than 800, scale it

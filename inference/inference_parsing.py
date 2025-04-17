@@ -4,7 +4,7 @@ import numpy as np
 import os
 import torch
 
-from facexlib.parsing import init_parsing_model
+from facexlib.utils import build_model
 
 # Colors for all parts
 part_colors_parsenet = [[0, 0, 0], [204, 0, 0], [76, 153, 0], [204, 204, 0], [51, 51, 255], [204, 0, 204], [0, 255, 255],
@@ -54,7 +54,7 @@ def vis_parsing_maps(img, parsing_anno, stride, save_anno_path=None, save_vis_pa
 
 
 def main(args):
-    net = init_parsing_model(args.model_name)
+    net = build_model(args.model_name)
 
     img_name = os.path.basename(args.input)
     img_basename = os.path.splitext(img_name)[0]
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--model_name', type=str, default='bisenet', help='bisenet | parsenet')
-    parser.add_argument('--input', type=str, default='../assets/test.jpg')
+    parser.add_argument('--input', type=str, default='assets/test.jpg')
     parser.add_argument('--output', type=str, default='results', help='output folder')
     args = parser.parse_args()
 

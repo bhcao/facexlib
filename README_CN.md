@@ -1,4 +1,4 @@
-# ![icon](assets/icon_small.png) FaceXLib
+# ![icon](assets/icon_small.png) FaceXLib Plus
 
 [![PyPI](https://img.shields.io/pypi/v/facexlib)](https://pypi.org/project/facexlib/)
 [![download](https://img.shields.io/github/downloads/xinntao/facexlib/total.svg)](https://github.com/xinntao/facexlib/releases)
@@ -12,11 +12,11 @@
 
 ---
 
+**facexlib plus** 是 [FaceXLib](https://github.com/xinntao/facexlib) 的增强版本，在保持顶级 API 的兼容性的同时提供更多功能。
+
 **facexlib** 的目标是提供基于当前 SOTA 开源方法的现成的 **人脸相关** 功能。<br>
 仅提供 PyTorch 参考代码。有关训练或微调，请参考下面列出的原始代码库。<br>
 请注意，我们仅提供这些算法的集合。对于您的预期用途，请参考它们的原始许可证。
-
-我们支持了 [Insighface](https://github.com/deepinsight/insightface) 的检测和识别模型 `antelopev2` 以及 `buffalo_l`（相同模型，误差可忽略），无需安装任何 onnx 运行时。对于由于 glib、python 或 CUDA 版本的问题而无法或不愿意安装 onnx 运行时的用户，我们建议使用我们的存储库。从 Insightface 迁移到 facexlib，请见 [迁移教程](tutorial/migrate_from_insightface.ipynb)。:heart_eyes:
 
 如果 facexlib 对您的项目有所帮助，请帮助 :star: 这个仓库。谢谢 :blush:<br>
 
@@ -26,21 +26,23 @@
 
 | 模块 | 源代码  | 原始许可证 |
 | :--- | :---:        |     :---:      |
-| [检测](facexlib/detection/README.md) | [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) | MIT |
-| [对齐](facexlib/alignment/README.md) |[AdaptiveWingLoss](https://github.com/protossw512/AdaptiveWingLoss) | Apache 2.0 |
-| [识别](facexlib/recognition/README.md) | [InsightFace_Pytorch](https://github.com/TreB1eN/InsightFace_Pytorch) 以及 [InsightFace (official)](https://github.com/deepinsight/insightface) | MIT |
-| [解析](facexlib/parsing/README.md) | [face-parsing.PyTorch](https://github.com/zllrunning/face-parsing.PyTorch) | MIT |
-| [抠图](facexlib/matting/README.md) | [MODNet](https://github.com/ZHKKKe/MODNet) | CC 4.0 |
-| [头部姿态](facexlib/headpose/README.md) | [deep-head-pose](https://github.com/natanielruiz/deep-head-pose) | Apache 2.0  |
-| [跟踪](facexlib/tracking/README.md) |  [SORT](https://github.com/abewley/sort) | GPL 3.0 |
-| [超分](facexlib/resolution/README.md) | [HAT](https://github.com/XPixelGroup/HAT) 和 [SwinIR](https://github.com/JingyunLiang/SwinIR) | - |
-| [性别与年龄](facexlib/genderage/README.md) | [MiVOLO](https://github.com/WildChlamydia/MiVOLO) | - |
-| [评估](facexlib/assessment/README.md) | [hyperIQA](https://github.com/SSL92/hyperIQA) | - |
-| [工具](facexlib/utils/README.md) | Face Restoration Helper | - |
+| [检测](inference/inference_detection.py) | [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) | MIT |
+| [对齐](inference/inference_alignment.py) |[AdaptiveWingLoss](https://github.com/protossw512/AdaptiveWingLoss) | Apache 2.0 |
+| [识别](inference/inference_recognition.py) | [InsightFace](https://github.com/deepinsight/insightface) | MIT |
+| [解析](inference/inference_parsing.py) | [face-parsing.PyTorch](https://github.com/zllrunning/face-parsing.PyTorch) | MIT |
+| [抠图](inference/inference_matting.py) | [MODNet](https://github.com/ZHKKKe/MODNet) | CC 4.0 |
+| [头部姿态](inference/inference_headpose.py) | [deep-head-pose](https://github.com/natanielruiz/deep-head-pose) | Apache 2.0  |
+| [跟踪](inference/inference_tracking.py) |  [SORT](https://github.com/abewley/sort) | GPL 3.0 |
+| [超分](inference/inference_super_resolution.py) | [SwinIR](https://github.com/JingyunLiang/SwinIR) | Apache 2.0 |
+| [性别与年龄](inference/inference_gender_age.py) | [MiVOLO](https://github.com/WildChlamydia/MiVOLO) | - |
+| [评估](inference/inference_hyperiqa.py) | [hyperIQA](https://github.com/SSL92/hyperIQA) | - |
+| [工具](inference/inference_crop_standard_faces.py) | Face Restoration Helper | - |
 
 > *注意：HAT 尚未在真实世界的面部数据集上进行微调，且在实际使用中不够稳定。SwinIR 在 [FaceID-6M](https://github.com/ShuheSH/FaceID-6M) 上使用 RealESRGAN 退化进行了微调。我们建议使用 SwinIR 进行超分辨率任务。*
 
 ## :eyes: 演示和教程
+
+**从 Insightface 迁移。** 我们支持了 [Insighface](https://github.com/deepinsight/insightface) 的检测和识别模型 `antelopev2` 以及 `buffalo_l`（相同模型，有一定误差），无需安装任何 onnx 运行时。对于由于 glib、python 或 CUDA 版本的问题而无法安装 onnx 运行时的用户，或者需要对生成模型的结果计算损失的用户，我们建议使用我们的存储库。从 Insightface 迁移到 facexlib，请见 [迁移教程](tutorial/migrate_from_insightface.ipynb)。 :heart_eyes:
 
 ## :wrench: 依赖和安装
 
@@ -58,7 +60,7 @@ pip install git+https://github.com/bhcao/facexlib.git
 
 如果您网络不稳定，可以提前下载（可以使用其他下载工具），并将它们放在文件夹 `PACKAGE_ROOT_PATH/facexlib/weights` 中。`PACKAGE_ROOT_PATH` 默认为 `facexlib` 的安装路径，你也可以在每个模型初始化时通过传递参数 `model_rootpath` 来改变它。
 
-如果您的网络稳定，您可以将环境变量 `BLOCK_DOWNLOADING` 设置为 `false`，以在第一次推理时自动下载预训练模型。
+如果您的网络稳定，您可以将 `build_model` 函数的 `auto_download` 参数设置为 `True`，以在第一次推理时自动下载预训练模型。
 
 ## :scroll: 许可证和致谢
 

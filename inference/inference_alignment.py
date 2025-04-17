@@ -2,13 +2,13 @@ import argparse
 import cv2
 import torch
 
-from facexlib.alignment import init_alignment_model, landmark_98_to_68
+from facexlib.alignment import landmark_98_to_68
 from facexlib.visualization import visualize_alignment
-
+from facexlib.utils import build_model
 
 def main(args):
     # initialize model
-    align_net = init_alignment_model(args.model_name, device=args.device)
+    align_net = build_model(args.model_name, device=args.device)
 
     img = cv2.imread(args.img_path)
     with torch.no_grad():

@@ -3,9 +3,7 @@ import numpy as np
 import os
 import torch
 
-from facexlib.detection import init_detection_model
-from facexlib.parsing import init_parsing_model
-from facexlib.utils.image_dto import ImageDTO
+from facexlib.utils import build_model, ImageDTO
 from facexlib.utils.misc import box_iou
 
 
@@ -97,12 +95,12 @@ class FaceRestoreHelper(object):
             self.device = device
 
         # init face detection model
-        self.face_det = init_detection_model(det_model, half=False, device=self.device, model_rootpath=model_rootpath)
+        self.face_det = build_model(det_model, half=False, device=self.device, save_dir=model_rootpath)
 
         # init face parsing model
         self.use_parse = use_parse
         if self.use_parse:
-            self.face_parse = init_parsing_model(model_name=parse_model, device=self.device, model_rootpath=model_rootpath)
+            self.face_parse = build_model(model_name=parse_model, device=self.device, save_dir=model_rootpath)
         else:
             self.face_parse = None
 

@@ -4,6 +4,10 @@ import os
 import numpy as np
 import torch
 import warnings
+from torch.hub import download_url_to_file, get_dir
+from urllib.parse import urlparse
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from facexlib.utils.image_dto import ImageDTO
 
@@ -62,7 +66,7 @@ def imwrite(img, file_path, params=None, auto_mkdir=True):
     Returns:
         bool: Successful or not.
     """
-    warnings.warn("imwrite is deprecated, use ImageDTO.save instead", DeprecationWarning)
+    warnings.warn("imwrite is deprecated, use ImageDTO.save instead", FutureWarning)
 
     return ImageDTO(img).save(file_path, params, auto_mkdir)
 
@@ -79,7 +83,7 @@ def img2tensor(imgs, bgr2rgb=True, float32=True):
         list[tensor] | tensor: Tensor images. If returned results only have
             one element, just return tensor.
     """
-    warnings.warn("img2tensor is deprecated, use ImageDTO.to_tensor instead", DeprecationWarning)
+    warnings.warn("img2tensor is deprecated, use ImageDTO.to_tensor instead", FutureWarning)
 
     def _totensor(img, bgr2rgb, float32):
         if img.shape[2] == 3 and bgr2rgb:
@@ -95,6 +99,30 @@ def img2tensor(imgs, bgr2rgb=True, float32=True):
         return [_totensor(img, bgr2rgb, float32) for img in imgs]
     else:
         return _totensor(imgs, bgr2rgb, float32)
+
+
+def load_file_from_url(url, model_dir=None, progress=True, file_name=None, save_dir=None):
+    """Ref:https://github.com/1adrianb/face-alignment/blob/master/face_alignment/utils.py
+    """
+    warnings.warn("load_file_from_url is deprecated, use build_model instead", FutureWarning)
+
+    if model_dir is None:
+        hub_dir = get_dir()
+        model_dir = os.path.join(hub_dir, 'checkpoints')
+
+    if save_dir is None:
+        save_dir = os.path.join(ROOT_DIR, model_dir)
+    os.makedirs(save_dir, exist_ok=True)
+
+    parts = urlparse(url)
+    filename = os.path.basename(parts.path)
+    if file_name is not None:
+        filename = file_name
+    cached_file = os.path.abspath(os.path.join(save_dir, filename))
+    if not os.path.exists(cached_file):
+        print(f'Downloading: "{url}" to {cached_file}\n')
+        download_url_to_file(url, cached_file, hash_prefix=None, progress=progress)
+    return cached_file
 
 
 def scandir(dir_path, suffix=None, recursive=False, full_path=False):
@@ -135,6 +163,7 @@ def scandir(dir_path, suffix=None, recursive=False, full_path=False):
                     continue
 
     return _scandir(dir_path, suffix=suffix, recursive=recursive)
+
 
 def box_iou(box1, box2, over_second=False):
     """

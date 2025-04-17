@@ -2,13 +2,13 @@ import argparse
 import cv2
 import torch
 
-from facexlib.detection import init_detection_model
+from facexlib.utils import build_model
 from facexlib.visualization import visualize_detection
 
 
 def main(args):
     # initialize model
-    det_net = init_detection_model(args.model_name, half=args.half)
+    det_net = build_model(args.model_name, half=args.half)
 
     img = cv2.imread(args.img_path)
     with torch.no_grad():

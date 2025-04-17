@@ -6,13 +6,13 @@ import cv2
 import numpy as np
 import torch
 
-from facexlib.detection import init_detection_model
-from facexlib.recognition import init_recognition_model, calculate_sim
+from facexlib.utils import build_model
+from facexlib.recognition import calculate_sim
 
 
 def main(args):
-    det_net = init_detection_model(args.det_model_name)
-    recog_net = init_recognition_model(args.recog_model_name)
+    det_net = build_model(args.det_model_name)
+    recog_net = build_model(args.recog_model_name)
 
     img1 = cv2.imread(args.img_path1)
     img2 = cv2.imread(args.img_path2)
@@ -36,8 +36,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_path1', type=str, default='../assets/test.jpg')
-    parser.add_argument('--img_path2', type=str, default='../assets/test2.jpg')
+    parser.add_argument('--img_path1', type=str, default='assets/test.jpg')
+    parser.add_argument('--img_path2', type=str, default='assets/test2.jpg')
     parser.add_argument(
         '--det_model_name', type=str, default='retinaface_resnet50', help='retinaface_resnet50 | retinaface_mobile0.25')
     parser.add_argument('--recog_model_name', type=str, default='antelopev2', help='arcface | antelopev2 | buffalo_l')

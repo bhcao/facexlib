@@ -4,16 +4,15 @@ import torch
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
-from facexlib.detection import init_detection_model
-from facexlib.headpose import init_headpose_model
+from facexlib.utils import build_model
 from facexlib.utils.image_dto import ImageDTO
 from facexlib.visualization import visualize_headpose
 
 
 def main(args):
     # initialize model
-    det_net = init_detection_model(args.detection_model_name, half=args.half)
-    headpose_net = init_headpose_model(args.headpose_model_name, half=args.half)
+    det_net = build_model(args.detection_model_name, half=args.half)
+    headpose_net = build_model(args.headpose_model_name, half=args.half)
 
     img = cv2.imread(args.img_path)
     with torch.no_grad():
@@ -41,7 +40,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Head pose estimation using the Hopenet network.')
     parser.add_argument('--img_path', type=str, default='assets/test.jpg')
-    parser.add_argument('--save_path', type=str, default='assets/test_headpose.png')
+    parser.add_argument('--save_path', type=str, default='test_headpose.png')
     parser.add_argument('--detection_model_name', type=str, default='retinaface_resnet50')
     parser.add_argument('--headpose_model_name', type=str, default='hopenet')
     parser.add_argument('--half', action='store_true')

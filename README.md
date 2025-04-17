@@ -1,4 +1,4 @@
-# ![icon](assets/icon_small.png) FaceXLib
+# ![icon](assets/icon_small.png) FaceXLib Plus
 
 [![PyPI](https://img.shields.io/pypi/v/facexlib)](https://pypi.org/project/facexlib/)
 [![download](https://img.shields.io/github/downloads/xinntao/facexlib/total.svg)](https://github.com/xinntao/facexlib/releases)
@@ -12,11 +12,11 @@
 
 ---
 
+**facexlib plus** is a enhanced version of [FaceXLib](https://github.com/xinntao/facexlib), which provides more functions while maintaining compatibility with the top level API.
+
 **facexlib** aims at providing ready-to-use **face-related** functions based on current SOTA open-source methods. <br>
 Only PyTorch reference codes are available. For training or fine-tuning, please refer to their original repositories listed below. <br>
 Note that we just provide a collection of these algorithms. You need to refer to their original LICENCEs for your intended use.
-
-We have supported the detection and recognition models `antelopev2` and `buffalo_l` for [Insighface](https://github.com/deepinsight/insightface) (identical models with ignorable differences), without the need to install any onnx runtime. For users who are unable or unwilling to install the onnx runtime due to issues with glib, python, or CUDA versions, we suggest using our repository. See [migration tutorial](tutorial/migrate_from_insightface.ipynb) for migrating from Insightface to facexlib. :heart_eyes:
 
 If facexlib is helpful in your projects, please help to :star: this repo. Thanks:blush: <br>
 
@@ -26,21 +26,23 @@ If facexlib is helpful in your projects, please help to :star: this repo. Thanks
 
 | Function | Sources  | Original LICENSE |
 | :--- | :---:        |     :---:      |
-| [Detection](facexlib/detection/README.md) | [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) | MIT |
-| [Alignment](facexlib/alignment/README.md) |[AdaptiveWingLoss](https://github.com/protossw512/AdaptiveWingLoss) | Apache 2.0 |
-| [Recognition](facexlib/recognition/README.md) | [InsightFace_Pytorch](https://github.com/TreB1eN/InsightFace_Pytorch) and [InsightFace (official)](https://github.com/deepinsight/insightface) | MIT |
-| [Parsing](facexlib/parsing/README.md) | [face-parsing.PyTorch](https://github.com/zllrunning/face-parsing.PyTorch) | MIT |
-| [Matting](facexlib/matting/README.md) | [MODNet](https://github.com/ZHKKKe/MODNet) | CC 4.0 |
-| [Headpose](facexlib/headpose/README.md) | [deep-head-pose](https://github.com/natanielruiz/deep-head-pose) | Apache 2.0  |
-| [Tracking](facexlib/tracking/README.md) |  [SORT](https://github.com/abewley/sort) | GPL 3.0 |
-| [Super Resolution](facexlib/resolution/README.md) | [HAT](https://github.com/XPixelGroup/HAT) and [SwinIR](https://github.com/JingyunLiang/SwinIR) | - |
-| [Gender & Age](facexlib/genderage/README.md) | [MiVOLO](https://github.com/WildChlamydia/MiVOLO) | - |
-| [Assessment](facexlib/assessment/README.md) | [hyperIQA](https://github.com/SSL92/hyperIQA) | - |
-| [Utils](facexlib/utils/README.md) | Face Restoration Helper | - |
+| [Detection](inference/inference_detection.py) | [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) | MIT |
+| [Alignment](inference/inference_alignment.py) |[AdaptiveWingLoss](https://github.com/protossw512/AdaptiveWingLoss) | Apache 2.0 |
+| [Recognition](inference/inference_recognition.py) | [InsightFace](https://github.com/deepinsight/insightface) | MIT |
+| [Parsing](inference/inference_parsing.py) | [face-parsing.PyTorch](https://github.com/zllrunning/face-parsing.PyTorch) | MIT |
+| [Matting](inference/inference_matting.py) | [MODNet](https://github.com/ZHKKKe/MODNet) | CC 4.0 |
+| [Headpose](inference/inference_headpose.py) | [deep-head-pose](https://github.com/natanielruiz/deep-head-pose) | Apache 2.0  |
+| [Tracking](inference/inference_tracking.py) |  [SORT](https://github.com/abewley/sort) | GPL 3.0 |
+| [Super Resolution](inference/inference_super_resolution.py) | [SwinIR](https://github.com/JingyunLiang/SwinIR) | Apache 2.0 |
+| [Gender & Age](inference/inference_gender_age.py) | [MiVOLO](https://github.com/WildChlamydia/MiVOLO) | - |
+| [Assessment](inference/inference_hyperiqa.py) | [hyperIQA](https://github.com/SSL92/hyperIQA) | - |
+| [Utils](inference/inference_crop_standard_faces.py) | Face Restoration Helper | - |
 
 > *Note: HAT haven't been finetuned on real-world facial datasets and is not stable enough for practical use. SwinIR is fine-tuned on [FaceID-6M](https://github.com/ShuheSH/FaceID-6M) using RealESRGAN degradation. We suggest using SwinIR for super-resolution tasks.*
 
 ## :eyes: Demo and Tutorials
+
+**Migrate from insightface.** We have supported the detection and recognition models `antelopev2` and `buffalo_l` for [Insighface](https://github.com/deepinsight/insightface) (identical models with a few differences), without the need to install any onnx runtime. For users who are unable to install the onnx runtime due to issues with glib, python, or CUDA versions, or who need to calculate losses on the results of the generated model, we suggest using our repository. See [migration tutorial](tutorial/migrate_from_insightface.ipynb) for migrating from Insightface to facexlib. :heart_eyes:
 
 ## :wrench: Dependencies and Installation
 
@@ -58,7 +60,7 @@ pip install git+https://github.com/bhcao/facexlib.git
 
 If your network is not stable, you can download in advance (may with other download tools), and put them in the folder: `PACKAGE_ROOT_PATH/facexlib/weights`. `PACKAGE_ROOT_PATH` defaults to the installation path of `facexlib`, you can also change it by passing the argument `model_rootpath` during the initialization of each model.
 
-If your network is stable, you can set the environment variable `BLOCK_DOWNLOADING` to `false` to enable automatically downloading of pre-trained models at the first inference.
+If your network is stable, you can set the argument `auto_download` of `build_model` function to `True` to enable automatically downloading of pre-trained models at the first inference.
 
 ## :scroll: License and Acknowledgement
 
