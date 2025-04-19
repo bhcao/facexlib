@@ -14,7 +14,7 @@ from facexlib.utils.image_dto import ImageDTO
 initialized_logger = {}
 
 # modified from basicsr.utils
-def get_root_logger(logger_name='basicsr', log_level=logging.INFO, log_file=None):
+def get_root_logger(logger_name='facexlib', log_level=logging.INFO, log_file=None):
     """Get the root logger.
 
     The logger will be initialized if it has not been initialized. By default a
@@ -22,7 +22,7 @@ def get_root_logger(logger_name='basicsr', log_level=logging.INFO, log_file=None
     also be added.
 
     Args:
-        logger_name (str): root logger name. Default: 'basicsr'.
+        logger_name (str): root logger name. Default: 'facexlib'.
         log_file (str | None): The log filename. If specified, a FileHandler
             will be added to the root logger.
         log_level (int): The root logger level. Note that only the process of

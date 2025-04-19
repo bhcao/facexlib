@@ -302,10 +302,10 @@ class InsightRetina(nn.Module):
         if max_num > 0 and det.shape[0] > max_num:
             area = (det[:, 2] - det[:, 0]) * (det[:, 3] -
                                                     det[:, 1])
-            img_center = img.image.shape[0] // 2, img.image.shape[1] // 2
+            img_center = img.size[0] // 2, img.size[1] // 2
             offsets = np.vstack([
-                (det[:, 0] + det[:, 2]) / 2 - img_center[1],
-                (det[:, 1] + det[:, 3]) / 2 - img_center[0]
+                (det[:, 0] + det[:, 2]) / 2 - img_center[0],
+                (det[:, 1] + det[:, 3]) / 2 - img_center[1]
             ])
             offset_dist_squared = np.sum(np.power(offsets, 2.0), 0)
             if metric=='max':

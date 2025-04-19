@@ -171,10 +171,10 @@ class RetinaFace(nn.Module):
                 self.target_size, keep_ratio=True, align_shorter_edge=True, max_size=self.max_size
             ) for img in images]
         
-        same_shape = len({x.image.shape for x in images}) == 1
+        same_shape = len({x.size for x in images}) == 1
         if not same_shape:
             if pad_to_same_size:
-                max_shape = np.max(np.array([x.image.shape for x in images]), axis=0)
+                max_shape = np.max(np.array([x.size for x in images]), axis=0)
                 images = [x.pad(max_shape) for x in images]
             else:
                 raise ValueError('Images have different shapes, set pad_to_same_size=True.')

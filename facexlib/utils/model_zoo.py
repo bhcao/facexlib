@@ -13,7 +13,7 @@ MODEL_ZOO = yaml.load(open(Path(__file__).absolute().parent / 'model_zoo.yaml', 
 __cached_models = {}
 
 def build_model(model_name, progress=True, file_name=None, save_dir=None, half=False, device=None, singleton=True, auto_download=False):
-    """Build a model from a given url.
+    """Build a model from the model zoo configurations of the given name.
 
     Args:
         model_name (str): The name of the model in the model zoo.
@@ -60,7 +60,7 @@ def build_model(model_name, progress=True, file_name=None, save_dir=None, half=F
     cached_file = save_dir.absolute() / filename
     if not cached_file.exists():
         if not auto_download:
-            raise RuntimeError(f'{cached_file} does not exist. Please download it manually from {url}')
+            raise RuntimeError(f'{cached_file} does not exist. Use `auto_download=True` or download it manually from {url}')
         print(f'Downloading: "{url}" to {cached_file}\n')
         download_url_to_file(url, cached_file, hash_prefix=None, progress=progress)
 

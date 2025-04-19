@@ -14,6 +14,8 @@ from scipy.optimize import linear_sum_assignment
 from facexlib.utils.image_dto import ImageDTO
 from facexlib.utils.misc import box_iou, get_root_logger
 
+logger = get_root_logger()
+
 from .yolo_blocks import (
     C2PSA,
     SPPF,
@@ -123,10 +125,10 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
     if act:
         Conv.default_act = eval(act)  # redefine default activation, i.e. Conv.default_act = torch.nn.SiLU()
         if verbose:
-            get_root_logger().info(f"activation: {act}")  # print
+            logger.info(f"activation: {act}")  # print
 
     if verbose:
-        get_root_logger().info(f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}  {'module':<45}{'arguments':<30}")
+        logger.info(f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}  {'module':<45}{'arguments':<30}")
     ch = [ch]
     layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
     base_modules = frozenset({Conv, SPPF, C2PSA, C2f, C3k2, torch.nn.ConvTranspose2d})
@@ -172,7 +174,7 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
         m_.np = sum(x.numel() for x in m_.parameters())  # number params
         m_.i, m_.f, m_.type = i, f, t  # attach index, 'from' index, type
         if verbose:
-            get_root_logger().info(f"{i:>3}{str(f):>20}{n_:>3}{m_.np:10.0f}  {t:<45}{str(args):<30}")  # print
+            logger.info(f"{i:>3}{str(f):>20}{n_:>3}{m_.np:10.0f}  {t:<45}{str(args):<30}")  # print
         save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1)  # append to savelist
         layers.append(m_)
         if i == 0:
@@ -208,7 +210,7 @@ class YOLODetectionModel(torch.nn.Module):
         # Define model
         ch = self.yaml["ch"] = self.yaml.get("ch", ch)  # input channels
         if nc and nc != self.yaml["nc"]:
-            get_root_logger().info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
+            logger.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
             self.yaml["nc"] = nc  # override YAML value
         self.model, self.save = parse_model(deepcopy(self.yaml), ch=ch, verbose=verbose)  # model, savelist
         self.names = {i: f"{i}" for i in range(self.yaml["nc"])} if names is None else names  # default names dict
@@ -334,7 +336,7 @@ class YOLODetectionModel(torch.nn.Module):
 
             # Preprocess
             im0s = [ImageDTO(i) for i in source]
-            same_shape = len({x.image.shape for x in im0s}) == 1
+            same_shape = len({x.size for x in im0s}) == 1
             im_re = [x.resize(self.imgsz, keep_ratio=True).pad(
                 None if same_shape else self.imgsz, stride=32 if same_shape else None
             ) for x in im0s]

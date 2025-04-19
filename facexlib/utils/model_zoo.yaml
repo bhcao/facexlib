@@ -140,3 +140,10 @@ HAT-L_x4:
   kwargs:
     model_type: HAT-L
     scale: 4
+
+mini_fasnet:
+  target: facexlib.spoofing.fasnet.Fasnet
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.4/80x80_MiniFASNetV2_and_V1SE.pth
+  kwargs:
+    embedding_size: 128
+    conv6_kernel: [5, 5]
