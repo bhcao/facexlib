@@ -26,9 +26,9 @@ If facexlib is helpful in your projects, please help to :star: this repo. Thanks
 
 | Function | Sources  | Original LICENSE |
 | :--- | :---:        |     :---:      |
-| [Detection](inference/inference_detection.py) | [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) | MIT |
+| [Detection](inference/inference_detection.py) | [Retinaface](https://github.com/biubug6/Pytorch_Retinaface) / [YOLO](https://github.com/ultralytics/ultralytics) | MIT / AGPL 3.0 |
 | [Alignment](inference/inference_alignment.py) |[AdaptiveWingLoss](https://github.com/protossw512/AdaptiveWingLoss) | Apache 2.0 |
-| [Recognition](inference/inference_recognition.py) | [InsightFace](https://github.com/deepinsight/insightface) | MIT |
+| [Recognition](inference/inference_recognition.py) | [InsightFace](https://github.com/deepinsight/insightface) / [FaceNet](https://github.com/davidsandberg/facenet) | MIT / MIT |
 | [Parsing](inference/inference_parsing.py) | [face-parsing.PyTorch](https://github.com/zllrunning/face-parsing.PyTorch) | MIT |
 | [Matting](inference/inference_matting.py) | [MODNet](https://github.com/ZHKKKe/MODNet) | CC 4.0 |
 | [Headpose](inference/inference_headpose.py) | [deep-head-pose](https://github.com/natanielruiz/deep-head-pose) | Apache 2.0  |

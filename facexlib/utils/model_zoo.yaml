@@ -84,6 +84,12 @@ arcface:
     drop_ratio: 0.6
     mode: ir_se
 
+facenet512:
+  target: facexlib.recognition.facenet.InceptionResNetV1
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.4/facenet512_weights.pth
+  kwargs:
+    dimension: 512
+
 antelopev2:
   target: facexlib.recognition.arcface_official.ArcFace
   url: https://github.com/bhcao/facexlib/releases/download/v0.3.2/antelopev2.pth

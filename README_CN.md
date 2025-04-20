@@ -26,9 +26,9 @@
 
 | 模块 | 源代码  | 原始许可证 |
 | :--- | :---:        |     :---:      |
-| [检测](inference/inference_detection.py) | [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) | MIT |
+| [检测](inference/inference_detection.py) | [Retinaface](https://github.com/biubug6/Pytorch_Retinaface) / [YOLO](https://github.com/ultralytics/ultralytics) | MIT / AGPL 3.0 |
 | [对齐](inference/inference_alignment.py) |[AdaptiveWingLoss](https://github.com/protossw512/AdaptiveWingLoss) | Apache 2.0 |
-| [识别](inference/inference_recognition.py) | [InsightFace](https://github.com/deepinsight/insightface) | MIT |
+| [识别](inference/inference_recognition.py) | [InsightFace](https://github.com/deepinsight/insightface) / [FaceNet](https://github.com/davidsandberg/facenet) | MIT / MIT |
 | [解析](inference/inference_parsing.py) | [face-parsing.PyTorch](https://github.com/zllrunning/face-parsing.PyTorch) | MIT |
 | [抠图](inference/inference_matting.py) | [MODNet](https://github.com/ZHKKKe/MODNet) | CC 4.0 |
 | [头部姿态](inference/inference_headpose.py) | [deep-head-pose](https://github.com/natanielruiz/deep-head-pose) | Apache 2.0  |

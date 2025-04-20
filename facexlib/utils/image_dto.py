@@ -190,7 +190,7 @@ class ImageDTO:
         return result
 
 
-    def align(self, new_shape, kps_src, kps_dst, fill=(135, 133, 132)) -> "ImageDTO":
+    def kps_align(self, new_shape, kps_src, kps_dst, fill=(135, 133, 132)) -> "ImageDTO":
         """
         Align the image by transforming the source keypoints to the destination keypoints. Restoring bbox is not supported.
 
@@ -237,6 +237,79 @@ class ImageDTO:
             aligned_img = cv2.warpAffine(self.image, M_affine, new_shape, borderValue=fill)
         
         result.image = aligned_img
+        return result
+
+    # modified from deepface
+    def crop_align(self, bbox, eyes_kps=None) -> "ImageDTO":
+        """
+        Align the image by cropping and rotating to keep the eyes in line. Restoring bbox is not supported.
+
+        Args:
+            bbox (np.ndarray): The bounding box (x1, y1, x2, y2) for cropping.
+            eyes_kps (np.ndarray, optional): The eyes keypoints with shape (2, 2), more keypoints will be ignored.
+
+        Returns:
+            The cropped and aligned image data.
+        """
+        result = ImageDTO(None)
+        result.orig_shape = self.orig_shape
+
+        bbox = np.array(bbox)[:4]
+
+        # crop image only
+        if eyes_kps is None:
+            bbox = bbox.astype(int)
+            if isinstance(self.image, torch.Tensor):
+                result.image = self.image[:, bbox[1]:bbox[3], bbox[0]:bbox[2]]
+            else:
+                result.image = self.image[bbox[1]:bbox[3], bbox[0]:bbox[2]]
+            return result
+    
+        def rotate_bbox(bbox, angle, size):
+            # We workaround the quirky behavior of the modulo operator for negative angle values.
+            direction = 1 if angle >= 0 else -1
+
+            # Normalize the angle less than 360 degrees.
+            angle = np.radians(abs(angle) % 360)
+            if angle == 0.0:
+                return bbox.reshape(-1).astype(int)
+
+            # Vector from bbox center to image center
+            center = (bbox[0] + bbox[1] - size) / 2
+
+            # Rotate the center vector
+            center = np.array([[np.cos(angle), direction * np.sin(angle)],
+                              [-direction * np.sin(angle), np.cos(angle)]]) @ center
+
+            # Translate the bbox back to the original position
+            bbox_half_width = (bbox[1] - bbox[0]) / 2
+            new_bbox = np.array([center - bbox_half_width, center + bbox_half_width]) + size / 2
+
+            # validate projected coordinates are in image's boundaries
+            new_bbox[0] = np.maximum(0, new_bbox[0])
+            new_bbox[1] = np.minimum(new_bbox[1], size)
+        
+            return new_bbox.reshape(-1).astype(int)
+        
+        # pad
+        size = np.array(self.size)
+        padded_img = self.pad(new_shape=size*2, center=True, fill=0)
+        bbox = bbox.reshape(-1, 2) + size // 2
+
+        # calculate rotation angle and rotate bbox
+        eyes_kps = np.array(eyes_kps).reshape(-1, 2)[:2]
+        eyes_vec = eyes_kps[1] - eyes_kps[0]
+        angle = float(np.degrees(np.arctan2(eyes_vec[1], eyes_vec[0])))
+        rot_bbox = rotate_bbox(bbox, angle, size*2)
+
+        # rotate and crop image
+        if isinstance(padded_img.image, torch.Tensor):
+            aligned_img = F_v.rotate(padded_img.image, angle)
+            result.image = aligned_img[:, rot_bbox[1]:rot_bbox[3], rot_bbox[0]:rot_bbox[2]]
+        else:
+            aligned_img = np.array(Image.fromarray(padded_img.image).rotate(angle))
+            result.image = aligned_img[rot_bbox[1]:rot_bbox[3], rot_bbox[0]:rot_bbox[2]]
+
         return result
 
 

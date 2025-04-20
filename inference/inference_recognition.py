@@ -21,7 +21,10 @@ def main(args):
         bbox1 = det_net.detect_faces(img1, 0.97)[0]
         bbox2 = det_net.detect_faces(img2, 0.97)[0]
 
-        output = recog_net.get([img1, img2], [bbox1[5:], bbox2[5:]])
+        if args.recog_model_name == 'facenet512':
+            output = recog_net.get([img1, img2], [bbox1[:5], bbox2[:5]], [bbox1[5:], bbox2[5:]])
+        else:
+            output = recog_net.get([img1, img2], [bbox1[5:], bbox2[5:]])
 
     output = output.data.cpu().numpy()
 
@@ -40,7 +43,7 @@ if __name__ == '__main__':
     parser.add_argument('--img_path2', type=str, default='assets/test2.jpg')
     parser.add_argument(
         '--det_model_name', type=str, default='retinaface_resnet50', help='retinaface_resnet50 | retinaface_mobile0.25')
-    parser.add_argument('--recog_model_name', type=str, default='antelopev2', help='arcface | antelopev2 | buffalo_l')
+    parser.add_argument('--recog_model_name', type=str, default='antelopev2', help='arcface | antelopev2 | buffalo_l | facenet512')
 
     args = parser.parse_args()
     main(args)      

@@ -1,3 +1,4 @@
+from typing import List
 import torch
 import torch.nn as nn
 
@@ -77,23 +78,18 @@ class ArcFace(nn.Module):
         self.batch_norm_output = nn.BatchNorm1d(512)
 
 
-    def get_feat(self, imgs):
+    def get_feat(self, imgs: List[ImageDTO]):
         '''
         Get embedding features of aligned face images.
 
         Args:
-            imgs (list or str or tensor): aligned face images.
+            imgs (List[ImageDTO]): aligned face images.
         '''
-        only_one_img = False
-        if not isinstance(imgs, (list, tuple)):
-            imgs = [imgs]
-            only_one_img = True
-        
         imgs = [ImageDTO(img).resize(self.input_size).to_tensor(rgb2bgr=True, mean=self.input_mean, std=self.input_std)
                 for img in imgs]
         imgs = torch.cat(imgs, dim=0).to(next(self.parameters()).device)
         net_out = self.forward(imgs)
-        return net_out[0] if only_one_img else net_out
+        return net_out
 
 
     def get(self, imgs, landmarks):
@@ -110,9 +106,11 @@ class ArcFace(nn.Module):
             landmarks = [landmarks]
             only_one_img = True
         
-        aligned_imgs = [ImageDTO(img).align(self.input_size, landmark, arcface_dst, fill=0) for img, landmark in zip(imgs, landmarks)]
+        aligned_imgs = [ImageDTO(img).kps_align(self.input_size, landmark, arcface_dst, fill=0)
+                        for img, landmark in zip(imgs, landmarks)]
         
-        return self.get_feat(aligned_imgs[0] if only_one_img else aligned_imgs)
+        outputs = self.get_feat(aligned_imgs)
+        return outputs[0] if only_one_img else outputs
 
 
     # must transform to [0, 1] before input
