@@ -93,6 +93,9 @@ if __name__ == '__main__':
         url='https://github.com/xinntao/facexlib',
         include_package_data=True,
         packages=find_packages(exclude=('options', 'datasets', 'experiments', 'results', 'tb_logger', 'wandb')),
+        package_data={
+            'facexlib.utils': ['model_zoo.yaml'],
+        },
         classifiers=[
             'Development Status :: 4 - Beta',
             'License :: OSI Approved :: Apache Software License',

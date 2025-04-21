@@ -1,7 +1,7 @@
 # Modified from Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
 
 import os
-from typing import Any, List, Union
+from typing import List, Union
 import numpy as np
 from PIL import Image
 import threading
@@ -33,7 +33,6 @@ from .yolo_utils import (
     make_divisible,
     check_imgsz,
     initialize_weights,
-    DEFAULT_CFG_DICT
 )
 
 # because of ultralytics bug it is important to unset CUBLAS_WORKSPACE_CONFIG after the module importing
@@ -191,10 +190,8 @@ class YOLODetectionModel(torch.nn.Module):
         device: str = "cuda",
         half: bool = True,
         verbose: bool = False,
-        conf_thresh: float = 0.4,
-        iou_thresh: float = 0.7,
+        image_size = 640,
         yaml_cfg = YOLO_V8X_CFG,
-        cfg = DEFAULT_CFG_DICT,
         names = None,
         ch = 3,
         nc = None,
@@ -251,18 +248,14 @@ class YOLODetectionModel(torch.nn.Module):
                 m.recompute_scale_factor = None  # torch 1.11.0 compatibility
 
         # only remember these arguments when loading a PyTorch model
-        self.overrides = {"imgsz": 640, "single_cls": False, "conf": 0.25, "batch": 1, "save": False, "mode": "predict"}
-        self.overrides.update({"conf": conf_thresh, "iou": iou_thresh, "half": half, "verbose": verbose})
-
         self.fp16 = half  # FP16
         if half and next(self.parameters()).type != "cpu":
             self.model = self.model.half()
         
-        self.args = cfg
         self.done_warmup = False
 
         # Usable if setup is done
-        self.imgsz = None
+        self.imgsz = check_imgsz(image_size, stride=self.stride, min_dim=2)  # check image size
         self.plotted_img = None
         self.txt_path = None
         self._lock = threading.Lock()  # for automatic thread-safe inference
@@ -314,18 +307,15 @@ class YOLODetectionModel(torch.nn.Module):
     @torch.no_grad()
     def predict(
         self,
-        source: Union[str, Path, int, Image.Image, list, tuple, np.ndarray, torch.Tensor] = None,
-        **kwargs: Any,
+        source: List[Union[str, Path, Image.Image, np.ndarray, torch.Tensor]] = None,
+        classes = None,
+        conf_thresh = 0.4,
+        iou_thresh = 0.7,
+        agnostic_nms = False,
+        max_det = 300,
     ) -> List[torch.Tensor]:
-
-        self.args = {**self.args, **self.overrides, **kwargs}
-
         """Streams real-time inference on camera feed and saves results to file."""
         with self._lock:  # for thread-safe inference
-            # Setup source every time predict is called
-            self.imgsz = check_imgsz(self.args["imgsz"], stride=self.stride, min_dim=2)  # check image size
-            if not isinstance(source, (list, tuple)):
-                source = [source]
 
             # Warmup model
             if not self.done_warmup:
@@ -343,15 +333,15 @@ class YOLODetectionModel(torch.nn.Module):
             im = torch.cat([i.to_tensor().to(device=self.device, dtype=torch.half if self.fp16 else torch.float) for i in im_re])
 
             # Inference
-            preds = self.forward(im, **kwargs)
+            preds = self.forward(im)
             # Postprocess
             preds = ops.non_max_suppression(
                 preds,
-                self.args["conf"],
-                self.args["iou"],
-                self.args["classes"],
-                self.args["agnostic_nms"],
-                max_det=self.args["max_det"],
+                conf_thresh,
+                iou_thresh,
+                classes,
+                agnostic_nms,
+                max_det,
                 nc=len(self.names),
                 end2end=getattr(self, "end2end", False),
             )
@@ -364,7 +354,15 @@ class YOLODetectionModel(torch.nn.Module):
         return results
 
     # change name to keep the same with RetinaFace
-    def detect_faces(self, image: Union[np.ndarray, str, "Image.Image"], iou_thresh: float = 0.0001, **kwargs):
+    def detect_faces(
+        self,
+        image: Union[np.ndarray, str, "Image.Image"],
+        associate_thresh: float = 0.0001,
+        conf_thresh = 0.4,
+        iou_thresh = 0.7,
+        agnostic_nms = False,
+        max_det = 300
+    ):
         """
         Detect faces and persons in an image then associate them if possible.
 
@@ -372,8 +370,12 @@ class YOLODetectionModel(torch.nn.Module):
 
         Args:
             image (tensor | path): The input image to detect faces on.
-            iou_thresh (float, optional): The IoU threshold for face-person association.
-            **kwargs: Additional arguments for the `predict` method.
+            associate_thresh (float, optional): The IoU threshold for face-person association.
+            conf_thresh (float, optional): The confidence threshold for detection.
+            iou_thresh (float, optional): The IoU threshold for detection.
+            agnostic_nms (bool, optional): If True, the model is agnostic to the number of classes, and all
+                classes will be considered as one.
+            max_det (int, optional): The maximum number of boxes to keep after NMS.
 
         Returns:
             (List[torch.Tensor]): The bounding boxes of the associated faces and persons in (*bbox_face, *bbox_person)
@@ -381,7 +383,13 @@ class YOLODetectionModel(torch.nn.Module):
         """
         assert self.names.get("face") is not None, "No face class found in names dictionary."
 
-        preds = [i.cpu().numpy() for i in self.predict(image, **kwargs)]
+        only_one_img = False
+        if not isinstance(image, (list, tuple)):
+            image = [image]
+            only_one_img = True
+
+        preds = [i.cpu().numpy() for i in self.predict(image, conf_thresh=conf_thresh, iou_thresh=iou_thresh, 
+                                                       agnostic_nms=agnostic_nms, max_det=max_det)]
         results = []
 
         for pred in preds:
@@ -398,7 +406,7 @@ class YOLODetectionModel(torch.nn.Module):
             # Assoicate faces with persons
             cost_matrix = box_iou(persons_bboxes, faces_bboxes, over_second=True)
             persons_inds, face_inds = linear_sum_assignment(cost_matrix, maximize=True)
-            mask = cost_matrix[persons_inds, face_inds] > iou_thresh
+            mask = cost_matrix[persons_inds, face_inds] > associate_thresh
             persons_inds, face_inds = persons_inds[mask], face_inds[mask]
             associated_bboxes = np.concatenate([faces_bboxes[face_inds], persons_bboxes[persons_inds]], axis=1)
 
@@ -411,5 +419,8 @@ class YOLODetectionModel(torch.nn.Module):
             persons_only_bboxes = np.concatenate([np.full((len(persons_only_inds), 5), np.nan), persons_bboxes[persons_only_inds]], axis=1)
 
             results.append(np.concatenate([associated_bboxes, faces_only_bboxes, persons_only_bboxes], axis=0))
+        
+        if only_one_img:
+            results = results[0]
 
         return results

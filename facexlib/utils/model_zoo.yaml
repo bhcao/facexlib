@@ -1,7 +1,9 @@
+# `load_state_dict` will automatically remove the prefix 'module.', '_orig_mod.' and get the key of 'state_dict', 
+# 'model', 'model_ema' or 'state_dict_ema'. Specify 'param_key' only when the key not meet any of above.
+
 awing_fan:
   target: facexlib.alignment.awing_arch.FAN
   url: https://github.com/xinntao/facexlib/releases/download/v0.1.0/alignment_WFLW_4HG.pth
-  param_key: state_dict
   kwargs:
     num_modules: 4
     num_landmarks: 98
@@ -15,7 +17,6 @@ hypernet:
 retinaface_resnet50:
   target: facexlib.detection.retinaface.RetinaFace
   url: https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth
-  param_prefix: module.
   kwargs:
     network_name: resnet50
 
@@ -31,19 +32,25 @@ insight_retina:
 
 yolov8x_person_face:
   target: facexlib.detection.yolo_model.YOLODetectionModel
-  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/yolov8x_person_face.pth
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.4/yolov8x_person_face.pth
   kwargs:
     names: {'person': 0, 'face': 1}
 
-# TODO
 volo_d1:
   target: facexlib.genderage.mi_volo.MiVOLO
-  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/model_utk_age_gender_4.23_97.69.pth
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.4/model_utk_age_gender_4.23_97.69.pth
+  load_module: model
+  kwargs:
+    model_type: volo_d1
+    use_persons: False
 
-# TODO
 mivolo_d1:
   target: facexlib.genderage.mi_volo.MiVOLO
-  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/model_imdb_cross_person_4.22_99.46.pth
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.4/model_imdb_cross_person_4.22_99.46.pth
+  load_module: model
+  kwargs:
+    model_type: mivolo_d1
+    use_persons: True
 
 hopenet:
   target: facexlib.headpose.hopenet_arch.HopeNet
@@ -57,7 +64,6 @@ hopenet:
 modnet:
   target: facexlib.matting.modnet.MODNet
   url: https://github.com/xinntao/facexlib/releases/download/v0.2.0/matting_modnet_portrait.pth
-  param_prefix: module.
   kwargs:
     backbone_pretrained: False
 
@@ -102,7 +108,7 @@ buffalo_l:
   kwargs:
     layer_num: [3, 4, 14, 3]
 
-SwinIR_x2:
+swinir_x2:
   target: facexlib.resolution.swinir_model.SwinIRModel
   url: https://github.com/bhcao/facexlib/releases/download/v0.3.4/SwinIR_x2.pth
   param_key: params_ema

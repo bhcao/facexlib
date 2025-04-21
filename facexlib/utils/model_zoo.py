@@ -6,6 +6,7 @@ import torch
 from torch.hub import download_url_to_file
 from urllib.parse import urlparse
 import yaml
+from timm.models._helpers import load_state_dict
 
 DEFAULT_SAVE_DIR = Path(__file__).absolute().parent.parent / 'weights'
 MODEL_ZOO = yaml.load(open(Path(__file__).absolute().parent / 'model_zoo.yaml', 'r'), Loader=yaml.FullLoader)
@@ -39,7 +40,6 @@ def build_model(model_name, progress=True, file_name=None, save_dir=None, half=F
     target = model_dict['target']
     url = model_dict['url']
     param_key = model_dict.get('param_key', None)
-    param_prefix = model_dict.get('param_prefix', None)
     load_module = model_dict.get('load_module', None)
     args = model_dict.get('args', [])
     kwargs = model_dict.get('kwargs', {})
@@ -65,12 +65,9 @@ def build_model(model_name, progress=True, file_name=None, save_dir=None, half=F
         download_url_to_file(url, cached_file, hash_prefix=None, progress=progress)
 
     # load the model parameters
+    state_dict = load_state_dict(cached_file, weights_only=True)
     if param_key is not None:
-        state_dict = torch.load(cached_file, weights_only=True)[param_key]
-    else:
-        state_dict = torch.load(cached_file, weights_only=True)
-    if param_prefix is not None:
-        state_dict = {k[len(param_prefix):]: v for k, v in state_dict.items() if k.startswith(param_prefix)}
+        state_dict = state_dict[param_key]
     
     # create the model instance
     init_params = inspect.signature(target_class.__init__).parameters.keys()

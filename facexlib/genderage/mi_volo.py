@@ -1,6 +1,7 @@
 from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
+import torch.nn as nn
 
 from facexlib.utils.image_dto import ImageDTO
 from facexlib.utils.misc import get_root_logger
@@ -9,42 +10,40 @@ from timm.data import resolve_data_config
 
 has_compile = hasattr(torch, "compile")
 
+MIVOLO_CFG = {
+    'mivolo_d1': {
+        'min_age': 1,
+        'max_age': 95,
+        'avg_age': 48.0,
+        'no_gender': False,
+        'with_persons_model': True,
+        'input_size': 224
+    },
+    'volo_d1': {
+        'min_age': 21,
+        'max_age': 60,
+        'avg_age': 40.5,
+        'no_gender': False,
+        'with_persons_model': False,
+        'input_size': 224
+    }
+}
 
 class Meta:
-    def __init__(self):
-        self.min_age = None
-        self.max_age = None
-        self.avg_age = None
-        self.num_classes = None
+    def __init__(self, cfg, disable_faces: bool = False, use_persons: bool = True):
+        self.min_age = cfg['min_age']
+        self.max_age = cfg['max_age']
+        self.avg_age = cfg['avg_age']
+        self.only_age = cfg['no_gender']
+        self.with_persons_model = cfg['with_persons_model']
+        self.input_size = cfg['input_size']
 
-        self.in_chans = 3
-        self.with_persons_model = False
-        self.disable_faces = False
-        self.use_persons = True
-        self.only_age = False
+        self.num_classes = 1 if self.only_age else 3
+        self.in_chans = 3 if not self.with_persons_model else 6
 
         self.num_classes_gender = 2
-        self.input_size = 224
-
-    def load_from_ckpt(self, ckpt_path: str, disable_faces: bool = False, use_persons: bool = True) -> "Meta":
-
-        state = torch.load(ckpt_path, map_location="cpu")
-
-        self.min_age = state["min_age"]
-        self.max_age = state["max_age"]
-        self.avg_age = state["avg_age"]
-        self.only_age = state["no_gender"]
-
-        only_age = state["no_gender"]
 
         self.disable_faces = disable_faces
-        if "with_persons_model" in state:
-            self.with_persons_model = state["with_persons_model"]
-        else:
-            self.with_persons_model = True if "patch_embed.conv1.0.weight" in state["state_dict"] else False
-
-        self.num_classes = 1 if only_age else 3
-        self.in_chans = 3 if not self.with_persons_model else 6
         self.use_persons = use_persons and self.with_persons_model
 
         if not self.with_persons_model and self.disable_faces:
@@ -54,8 +53,6 @@ class Meta:
                 "You can not disable faces and persons together. "
                 "Set --with-persons if you want to run with --disable-faces"
             )
-        self.input_size = state["state_dict"]["pos_embed"].shape[1] * 16
-        return self
 
     def __str__(self):
         attrs = vars(self)
@@ -71,10 +68,10 @@ class Meta:
         return not self.disable_faces or not self.with_persons_model
 
 
-class MiVOLO:
+class MiVOLO(nn.Module):
     def __init__(
         self,
-        ckpt_path: str,
+        model_type: str,
         device: str = "cuda",
         half: bool = True,
         disable_faces: bool = False,
@@ -82,11 +79,13 @@ class MiVOLO:
         verbose: bool = False,
         torchcompile: Optional[str] = None,
     ):
+        super().__init__()
         self.verbose = verbose
         self.device = torch.device(device)
-        self.half = half and self.device.type != "cpu"
+        self.fp16 = half and self.device.type != "cpu"
 
-        self.meta: Meta = Meta().load_from_ckpt(ckpt_path, disable_faces, use_persons)
+        self.meta: Meta = Meta(MIVOLO_CFG[model_type], disable_faces=disable_faces, use_persons=use_persons)
+
         if self.verbose:
             get_root_logger().info(f"Model meta:\n{str(self.meta)}")
 
@@ -96,8 +95,6 @@ class MiVOLO:
             num_classes=self.meta.num_classes,
             in_chans=self.meta.in_chans,
             pretrained=False,
-            checkpoint_path=ckpt_path,
-            filter_keys=["fds."],
         )
         self.param_count = sum([m.numel() for m in self.model.parameters()])
         get_root_logger().info(f"Model {model_name} created, param count: {self.param_count}")
@@ -113,20 +110,17 @@ class MiVOLO:
         assert h == w, "Incorrect data_config"
         self.input_size = w
 
-        self.model = self.model.to(self.device)
-
         if torchcompile:
             assert has_compile, "A version of torch w/ torch.compile() is required for --compile, possibly a nightly."
             torch._dynamo.reset()
             self.model = torch.compile(self.model, backend=torchcompile)
 
-        self.model.eval()
-        if self.half:
+        if self.fp16:
             self.model = self.model.half()
 
     def inference(self, model_input: torch.tensor, keep_pre_logits: bool = False) -> torch.tensor:
 
-        if self.half:
+        if self.fp16:
             model_input = model_input.half()
         
         features = self.model.forward_features(model_input)

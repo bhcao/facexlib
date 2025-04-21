@@ -2,17 +2,16 @@ import argparse
 import cv2
 import torch
 
-from facexlib.genderage import init_genderage_model
 from facexlib.utils import build_model
 
 def main(args):    
     det_net = build_model(args.detection_model_name, half=args.half)
-    genderage_net = init_genderage_model(args.genderage_model_name, half=args.half)
+    genderage_net = build_model(args.genderage_model_name, half=args.half)
 
     img = cv2.imread(args.img_path)
     with torch.no_grad():
         bboxes = det_net.detect_faces(img)
-        ages, genders, genders_scores, age_embeds = genderage_net.predict(img, bboxes[0], keep_pre_logits=True)
+        ages, genders, genders_scores, age_embeds = genderage_net.predict(img, bboxes, keep_pre_logits=True)
         print(age_embeds.shape, ages, genders, genders_scores)
 
 
