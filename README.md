@@ -33,13 +33,11 @@ If facexlib is helpful in your projects, please help to :star: this repo. Thanks
 | [Matting](inference/inference_matting.py) | [MODNet](https://github.com/ZHKKKe/MODNet) | CC 4.0 |
 | [Headpose](inference/inference_headpose.py) | [deep-head-pose](https://github.com/natanielruiz/deep-head-pose) | Apache 2.0  |
 | [Tracking](inference/inference_tracking.py) |  [SORT](https://github.com/abewley/sort) | GPL 3.0 |
-| [Super Resolution](inference/inference_super_resolution.py) | [SwinIR](https://github.com/JingyunLiang/SwinIR) | Apache 2.0 |
+| [Super Resolution](inference/inference_super_resolution.py) | [SwinIR](https://github.com/JingyunLiang/SwinIR) / [DRCT](https://github.com/ming053l/drct) | Apache 2.0 / MIT |
 | [Anti-Spoofing](inference/inference_anti_spoofing.py) | [Silent-Face-Anti-Spoofing](https://github.com/minivision-ai/Silent-Face-Anti-Spoofing) | Apache 2.0 |
 | [Gender & Age](inference/inference_gender_age.py) | [MiVOLO](https://github.com/WildChlamydia/MiVOLO) | - |
 | [Assessment](inference/inference_hyperiqa.py) | [hyperIQA](https://github.com/SSL92/hyperIQA) | - |
 | [Utils](inference/inference_crop_standard_faces.py) | Face Restoration Helper | - |
-
-> *Note: HAT haven't been finetuned on real-world facial datasets and is not stable enough for practical use. SwinIR is fine-tuned on [FaceID-6M](https://github.com/ShuheSH/FaceID-6M) using RealESRGAN degradation. We suggest using SwinIR for super-resolution tasks.*
 
 ## :eyes: Demo and Tutorials
 
@@ -48,7 +46,7 @@ If facexlib is helpful in your projects, please help to :star: this repo. Thanks
 ## :wrench: Dependencies and Installation
 
 - Python >= 3.7 (Recommend to use [Anaconda](https://www.anaconda.com/download/#linux) or [Miniforge (mamba)](https://github.com/conda-forge/miniforge))
-- [PyTorch >= 1.10](https://pytorch.org/)
+- [PyTorch >= 1.10](https://pytorch.org/) (Recommend NOT using torch 1.12! It would cause abnormal performance.)
 - Option: NVIDIA GPU + [CUDA](https://developer.nvidia.com/cuda-downloads)
 
 ### Installation

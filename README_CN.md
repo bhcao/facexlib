@@ -33,13 +33,11 @@
 | [抠图](inference/inference_matting.py) | [MODNet](https://github.com/ZHKKKe/MODNet) | CC 4.0 |
 | [头部姿态](inference/inference_headpose.py) | [deep-head-pose](https://github.com/natanielruiz/deep-head-pose) | Apache 2.0  |
 | [跟踪](inference/inference_tracking.py) |  [SORT](https://github.com/abewley/sort) | GPL 3.0 |
-| [超分](inference/inference_super_resolution.py) | [SwinIR](https://github.com/JingyunLiang/SwinIR) | Apache 2.0 |
+| [超分](inference/inference_super_resolution.py) | [SwinIR](https://github.com/JingyunLiang/SwinIR) / [DRCT](https://github.com/ming053l/drct) | Apache 2.0 / MIT |
 | [活体检测](inference/inference_anti_spoofing.py) | [Silent-Face-Anti-Spoofing](https://github.com/minivision-ai/Silent-Face-Anti-Spoofing) | Apache 2.0 |
 | [性别与年龄](inference/inference_gender_age.py) | [MiVOLO](https://github.com/WildChlamydia/MiVOLO) | - |
 | [评估](inference/inference_hyperiqa.py) | [hyperIQA](https://github.com/SSL92/hyperIQA) | - |
 | [工具](inference/inference_crop_standard_faces.py) | Face Restoration Helper | - |
-
-> *注意：HAT 尚未在真实世界的面部数据集上进行微调，且在实际使用中不够稳定。SwinIR 在 [FaceID-6M](https://github.com/ShuheSH/FaceID-6M) 上使用 RealESRGAN 退化进行了微调。我们建议使用 SwinIR 进行超分辨率任务。*
 
 ## :eyes: 演示和教程
 
@@ -48,7 +46,7 @@
 ## :wrench: 依赖和安装
 
 - Python >= 3.7 （推荐使用 [Anaconda](https://www.anaconda.com/download/#linux) 或 [Miniforge (mamba)](https://github.com/conda-forge/miniforge)）
-- [PyTorch >= 1.10](https://pytorch.org/)
+- [PyTorch >= 1.10](https://pytorch.org/) （建议不要使用 torch 1.12！因为它会导致性能异常）
 - 可选：NVIDIA GPU + [CUDA](https://developer.nvidia.com/cuda-downloads)
 
 ### 安装

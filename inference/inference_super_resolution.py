@@ -1,3 +1,6 @@
+# DRCT haven't been finetuned on real-world facial datasets. SwinIR is fine-tuned on 
+# [FaceID-6M](https://github.com/ShuheSH/FaceID-6M) using RealESRGAN degradation.
+
 import torch
 import argparse
 from PIL import Image
@@ -19,7 +22,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--img_path', type=str, default='assets/test2.jpg')
-    parser.add_argument('--model_name', type=str, default='swinir_x2', help='swinir_x2 | HAT_x2 | HAT_x4 | HAT-L_x2 | HAT-L_x4')
+    parser.add_argument('--model_name', type=str, default='swinir_x2', help='swinir_x2 | drct_x4 | drctl_x4')
     parser.add_argument('--output_path', type=str, default='./test_super_resolution.png')
     parser.add_argument('--half', action='store_true')
     args = parser.parse_args()

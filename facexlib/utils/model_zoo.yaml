@@ -117,40 +117,22 @@ swinir_x2:
     model_type: SwinIR
     upscale: 2
 
-HAT_x2:
-  target: facexlib.resolution.hat_model.HATModel
-  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT_SRx2_ImageNet-pretrain.pth
+drct_x4:
+  target: facexlib.resolution.drct_model.DRCTModel
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.4/Real_DRCT_GAN_SRx4.pth
   param_key: params_ema
   load_module: net_g
   kwargs:
-    model_type: HAT
-    scale: 2
-
-HAT_x4:
-  target: facexlib.resolution.hat_model.HATModel
-  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT_SRx4_ImageNet-pretrain.pth
-  param_key: params_ema
-  load_module: net_g
-  kwargs:
-    model_type: HAT
+    model_type: DRCT
     scale: 4
 
-HAT-L_x2:
-  target: facexlib.resolution.hat_model.HATModel
-  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT-L_SRx2_ImageNet-pretrain.pth
+drctl_x4:
+  target: facexlib.resolution.drct_model.DRCTModel
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.4/Real_DRCT-L_GAN_SRx4.pth
   param_key: params_ema
   load_module: net_g
   kwargs:
-    model_type: HAT-L
-    scale: 2
-
-HAT-L_x4:
-  target: facexlib.resolution.hat_model.HATModel
-  url: https://github.com/bhcao/facexlib/releases/download/v0.3.1/HAT-L_SRx4_ImageNet-pretrain.pth
-  param_key: params_ema
-  load_module: net_g
-  kwargs:
-    model_type: HAT-L
+    model_type: DRCT-L
     scale: 4
 
 mini_fasnet:

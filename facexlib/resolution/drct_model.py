@@ -5,12 +5,12 @@ import numpy as np
 import math
 from PIL import Image
 
-from facexlib.resolution.hat_arch import HAT
+from facexlib.resolution.drct_arch import DRCT
 from facexlib.resolution.sr_model import SRModel
 from facexlib.utils.image_dto import ImageDTO
 
 NETWORK_G_CONFIG = {
-    'HAT-L': {
+    'DRCT-L': {
         "in_chans": 3,
         "img_size": 64,
         "window_size": 16,
@@ -26,7 +26,7 @@ NETWORK_G_CONFIG = {
         "upsampler": 'pixelshuffle',
         "resi_connection": '1conv'
     },
-    'HAT': {
+    'DRCT': {
         "in_chans": 3,
         "img_size": 64,
         "window_size": 16,
@@ -44,11 +44,11 @@ NETWORK_G_CONFIG = {
     },
 }
 
-class HATModel(SRModel):
+class DRCTModel(SRModel):
     def __init__(self, model_type, scale=1, device='cuda', half=False, **kwargs):
         net_work_config = deepcopy(NETWORK_G_CONFIG[model_type])
-        net_g = HAT(upscale=scale, **net_work_config)
-        super(HATModel, self).__init__(net_g, device=device, half=half, **kwargs)
+        net_g = DRCT(upscale=scale, **net_work_config)
+        super(DRCTModel, self).__init__(net_g, device=device, half=half, **kwargs)
 
         # store for later use
         self.window_size = net_work_config['window_size']
