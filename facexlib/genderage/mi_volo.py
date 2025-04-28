@@ -118,31 +118,31 @@ class MiVOLO(nn.Module):
         if self.fp16:
             self.model = self.model.half()
 
-    def inference(self, model_input: torch.tensor, keep_pre_logits: bool = False) -> torch.tensor:
+    def inference(self, model_input: torch.tensor, logits: bool = False) -> torch.tensor:
 
         if self.fp16:
             model_input = model_input.half()
         
         features = self.model.forward_features(model_input)
         output = self.model.forward_head(features)
-        if keep_pre_logits:
+        if logits:
             pre_logits = self.model.forward_head(features, pre_logits=True)
             return output, pre_logits
 
         return output, None
 
-    def predict(self, image: Union[np.ndarray, str, torch.Tensor], bboxes: np.ndarray, keep_pre_logits: bool = False):
+    def predict(self, image: Union[np.ndarray, str, torch.Tensor], bboxes: np.ndarray, logits: bool = False):
         '''
         Predict age and gender for faces and persons in the image.
 
         Args:
             image: Input image, ImageDTO accepted type.
             bboxes: Bounding boxes of faces and persons, shape (n, 10).
-            keep_pre_logits: Whether to return pre-logits or not.
+            logits: Whether to return pre-logits or not.
         
         Returns:
             A tuple of (ages, genders, gender_scores), where ages, genders, and gender_scores are lists of length n.
-            If `keep_pre_logits` is True, will also return pre-logits.
+            If `logits` is True, will also return pre-logits.
         '''
         image = ImageDTO(image)
 
@@ -188,12 +188,12 @@ class MiVOLO(nn.Module):
         else:
             model_input = faces_input
         
-        output, pre_logits = self.inference(model_input, keep_pre_logits)
+        output, pre_logits = self.inference(model_input, logits)
 
         # write gender and age results
         results = self.fill_in_results(output, inds, len(bboxes))
 
-        if keep_pre_logits:
+        if logits:
             return *results, pre_logits
         else:
             return results

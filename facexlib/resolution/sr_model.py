@@ -4,12 +4,10 @@ save, distribution and metric logic.
 '''
 
 from collections import OrderedDict
-import numpy as np
 import torch
 import torch.nn as nn
-from PIL import Image
 
-from facexlib.utils.image_dto import ImageDTO
+from facexlib.utils.image_dto import ImageDTO, ImageInput
 from facexlib.utils.misc import get_root_logger
 
 class SRModel(nn.Module):
@@ -52,7 +50,7 @@ class SRModel(nn.Module):
                 self.output = self.net_g(self.lq)
             self.net_g.train()
     
-    def inference(self, image: np.ndarray | Image.Image):
+    def inference(self, image: ImageInput):
         self.lq = ImageDTO(image).to_tensor().to(device=self.device, dtype=self.dtype)
         self.test()
 

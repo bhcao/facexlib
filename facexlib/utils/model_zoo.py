@@ -6,6 +6,7 @@ import torch
 from torch.hub import download_url_to_file
 from urllib.parse import urlparse
 import yaml
+import timm
 from timm.models._helpers import load_state_dict
 
 DEFAULT_SAVE_DIR = Path(__file__).absolute().parent.parent / 'weights'
@@ -64,8 +65,8 @@ def build_model(model_name, progress=True, file_name=None, save_dir=None, half=F
         print(f'Downloading: "{url}" to {cached_file}\n')
         download_url_to_file(url, cached_file, hash_prefix=None, progress=progress)
 
-    # load the model parameters
-    state_dict = load_state_dict(cached_file, weights_only=True)
+    # load the model parameters, weights_only is only available in timm>=1.0.9
+    state_dict = load_state_dict(cached_file, **{'weights_only': True} if timm.__version__ >= '1.0.9' else {})
     if param_key is not None:
         state_dict = state_dict[param_key]
     
@@ -83,9 +84,9 @@ def build_model(model_name, progress=True, file_name=None, save_dir=None, half=F
     model.eval()
     model.to(device)
 
-    # fuse conv and bn
-    if hasattr(model, 'fuse'):
-        model.fuse()
+    # post hook for building the model
+    if hasattr(model, 'build_model_post_hook'):
+        model.build_model_post_hook()
 
     if singleton:
         __cached_models[model_name] = model

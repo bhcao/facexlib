@@ -281,7 +281,7 @@ class YOLODetectionModel(torch.nn.Module):
 
 
     @torch.no_grad()
-    def fuse(self, thresh=10):
+    def build_model_post_hook(self, thresh=10):
         """
         Fuse the `Conv2d()` and `BatchNorm2d()` layers of the model into a single layer, in order to improve the
         computation efficiency.

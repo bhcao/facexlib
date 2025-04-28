@@ -36,6 +36,14 @@ yolov8x_person_face:
   kwargs:
     names: {'person': 0, 'face': 1}
 
+emotiefflib_enet_b2:
+  target: facexlib.expression.emotiefflib.EmotiEffLibRecognizer
+  url: https://github.com/bhcao/facexlib/releases/download/v0.3.5/emotiefflib_efficientnet_b2.pth
+  load_module: model
+  kwargs:
+    network_name: tf_efficientnet_b2.ns_jft_in1k
+    img_size: 260
+
 volo_d1:
   target: facexlib.genderage.mi_volo.MiVOLO
   url: https://github.com/bhcao/facexlib/releases/download/v0.3.4/model_utk_age_gender_4.23_97.69.pth

@@ -35,6 +35,7 @@
 | [跟踪](inference/inference_tracking.py) |  [SORT](https://github.com/abewley/sort) | GPL 3.0 |
 | [超分](inference/inference_super_resolution.py) | [SwinIR](https://github.com/JingyunLiang/SwinIR) / [DRCT](https://github.com/ming053l/drct) | Apache 2.0 / MIT |
 | [活体检测](inference/inference_anti_spoofing.py) | [Silent-Face-Anti-Spoofing](https://github.com/minivision-ai/Silent-Face-Anti-Spoofing) | Apache 2.0 |
+| [表情](inference/inference_expression.py) | [EmotiEffLib](https://github.com/sb-ai-lab/EmotiEffLib) | Apache 2.0 |
 | [性别与年龄](inference/inference_gender_age.py) | [MiVOLO](https://github.com/WildChlamydia/MiVOLO) | - |
 | [评估](inference/inference_hyperiqa.py) | [hyperIQA](https://github.com/SSL92/hyperIQA) | - |
 | [工具](inference/inference_crop_standard_faces.py) | Face Restoration Helper | - |

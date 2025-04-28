@@ -3,7 +3,7 @@ import logging
 import os
 import numpy as np
 import torch
-import warnings
+from typing_extensions import deprecated
 from torch.hub import download_url_to_file, get_dir
 from urllib.parse import urlparse
 
@@ -53,6 +53,7 @@ def get_root_logger(logger_name='facexlib', log_level=logging.INFO, log_file=Non
     return logger
 
 
+@deprecated("`imwrite` is deprecated. Please use `ImageDTO.save` instead.", category=FutureWarning)
 def imwrite(img, file_path, params=None, auto_mkdir=True):
     """Write image to file.
 
@@ -66,11 +67,10 @@ def imwrite(img, file_path, params=None, auto_mkdir=True):
     Returns:
         bool: Successful or not.
     """
-    warnings.warn("imwrite is deprecated, use ImageDTO.save instead", FutureWarning)
-
     return ImageDTO(img).save(file_path, params, auto_mkdir)
 
 
+@deprecated("`img2tensor` is deprecated. Please use `ImageDTO.to_tensor` instead.", category=FutureWarning)
 def img2tensor(imgs, bgr2rgb=True, float32=True):
     """Numpy array to tensor.
 
@@ -83,8 +83,6 @@ def img2tensor(imgs, bgr2rgb=True, float32=True):
         list[tensor] | tensor: Tensor images. If returned results only have
             one element, just return tensor.
     """
-    warnings.warn("img2tensor is deprecated, use ImageDTO.to_tensor instead", FutureWarning)
-
     def _totensor(img, bgr2rgb, float32):
         if img.shape[2] == 3 and bgr2rgb:
             if img.dtype == 'float64':
@@ -101,11 +99,10 @@ def img2tensor(imgs, bgr2rgb=True, float32=True):
         return _totensor(imgs, bgr2rgb, float32)
 
 
+@deprecated("`load_file_from_url` is deprecated. Please use `build_model` instead.", category=FutureWarning)
 def load_file_from_url(url, model_dir=None, progress=True, file_name=None, save_dir=None):
     """Ref:https://github.com/1adrianb/face-alignment/blob/master/face_alignment/utils.py
     """
-    warnings.warn("load_file_from_url is deprecated, use build_model instead", FutureWarning)
-
     if model_dir is None:
         hub_dir = get_dir()
         model_dir = os.path.join(hub_dir, 'checkpoints')

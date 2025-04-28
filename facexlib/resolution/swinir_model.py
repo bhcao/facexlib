@@ -4,7 +4,7 @@ from copy import deepcopy
 import torch
 import torch.nn as nn
 
-from typing import Tuple, Callable, Literal
+from typing import Optional, Tuple, Callable, Literal
 
 import numpy as np
 from tqdm import tqdm
@@ -68,10 +68,10 @@ def make_tiled_fn(
     stride: int,
     scale_type: Literal["up", "down"] = "up",
     scale: int = 1,
-    channel: int | None = None,
+    channel: Optional[int] = None,
     weight: Literal["uniform", "gaussian"] = "gaussian",
-    dtype: torch.dtype | None = None,
-    device: torch.device | None = None,
+    dtype: Optional[torch.dtype] = None,
+    device: Optional[torch.device] = None,
     # callback: Callable[[int, int, int, int], None] | None = None,
     progress: bool = True,
 ) -> Callable[[torch.Tensor], torch.Tensor]:

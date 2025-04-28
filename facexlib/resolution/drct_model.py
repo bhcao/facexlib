@@ -1,13 +1,11 @@
 from copy import deepcopy
 import torch
 from torch.nn import functional as F
-import numpy as np
 import math
-from PIL import Image
 
 from facexlib.resolution.drct_arch import DRCT
 from facexlib.resolution.sr_model import SRModel
-from facexlib.utils.image_dto import ImageDTO
+from facexlib.utils.image_dto import ImageDTO, ImageInput
 
 NETWORK_G_CONFIG = {
     'DRCT-L': {
@@ -150,7 +148,7 @@ class DRCTModel(SRModel):
         _, _, h, w = self.output.size()
         self.output = self.output[:, :, 0:h - self.mod_pad_h * self.scale, 0:w - self.mod_pad_w * self.scale]
 
-    def inference(self, image: np.ndarray | Image.Image, tile_size=None, tile_pad=None):
+    def inference(self, image: ImageInput, tile_size=None, tile_pad=None):
         self.lq = ImageDTO(image).to_tensor().to(device=self.device, dtype=self.dtype)
 
         self.pre_process()

@@ -1,4 +1,4 @@
-import warnings
+from typing_extensions import deprecated
 import numpy as np
 import torch
 import torch.nn as nn
@@ -90,7 +90,7 @@ class RetinaFace(nn.Module):
             self.body = IntermediateLayerGetter(backbone, cfg['return_layers'])
         elif cfg['name'] == 'Resnet50':
             import torchvision.models as models
-            backbone = models.resnet50(pretrained=False)
+            backbone = models.resnet50()
             self.body = IntermediateLayerGetter(backbone, cfg['return_layers'])
 
         in_channels_stage2 = cfg['in_channel']
@@ -270,9 +270,8 @@ class RetinaFace(nn.Module):
 
         return self.__align_multi(img, boxes, landmarks, limit)
 
+    @deprecated('`batched_detect_faces` is deprecated. Please use `detect_faces` instead.', category=FutureWarning)
     def batched_detect_faces(self, frames, conf_threshold=0.8, nms_threshold=0.4, use_origin_size=True):
-        warnings.warn('This function is deprecated, use detect_faces instead.', FutureWarning)
-
         results = self.detect_faces(frames, conf_threshold=conf_threshold, nms_threshold=nms_threshold, 
                                     use_origin_size=use_origin_size)
         

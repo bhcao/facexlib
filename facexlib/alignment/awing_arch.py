@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from facexlib.utils.image_dto import ImageDTO
+
 
 def calculate_points(heatmaps):
     # change heatmaps to landmarks
@@ -357,15 +359,11 @@ class FAN(nn.Module):
         return outputs, boundary_channels
 
     def get_landmarks(self, img):
-        H, W, _ = img.shape
+        img = ImageDTO(img)
+        W, H = img.size
         offset = W / 64, H / 64, 0, 0
 
-        img = cv2.resize(img, (256, 256))
-        inp = img[..., ::-1]
-        inp = torch.from_numpy(np.ascontiguousarray(inp.transpose((2, 0, 1)))).float()
-        inp = inp.to(self.device)
-        inp.div_(255.0).unsqueeze_(0)
-
+        inp = img.resize((256, 256)).to_tensor().to(self.device)
         outputs, _ = self.forward(inp)
         out = outputs[-1][:, :-1, :, :]
         heatmaps = out.detach().cpu().numpy()
