@@ -43,7 +43,7 @@ if __name__ == '__main__':
     parser.add_argument('--img_path2', type=str, default='assets/test2.jpg')
     parser.add_argument(
         '--det_model_name', type=str, default='retinaface_resnet50', help='retinaface_resnet50 | retinaface_mobile0.25')
-    parser.add_argument('--recog_model_name', type=str, default='antelopev2', help='arcface | antelopev2 | buffalo_l | facenet512')
+    parser.add_argument('--recog_model_name', type=str, default='antelopev2', help='arcface | antelopev2 | buffalo_l | facenet512 | mtlface')
 
     args = parser.parse_args()
     main(args)      

@@ -36,6 +36,7 @@ If facexlib is helpful in your projects, please help to :star: this repo. Thanks
 | [Super Resolution](inference/inference_super_resolution.py) | [SwinIR](https://github.com/JingyunLiang/SwinIR) / [DRCT](https://github.com/ming053l/drct) | Apache 2.0 / MIT |
 | [Anti-Spoofing](inference/inference_anti_spoofing.py) | [Silent-Face-Anti-Spoofing](https://github.com/minivision-ai/Silent-Face-Anti-Spoofing) | Apache 2.0 |
 | [Expression](inference/inference_expression.py) | [EmotiEffLib](https://github.com/sb-ai-lab/EmotiEffLib) | Apache 2.0 |
+| [Recognition (age-invariant)](inference/inference_recognition.py) | [MTLFace](https://github.com/Hzzone/MTLFace) | - |
 | [Gender & Age](inference/inference_gender_age.py) | [MiVOLO](https://github.com/WildChlamydia/MiVOLO) | - |
 | [Assessment](inference/inference_hyperiqa.py) | [hyperIQA](https://github.com/SSL92/hyperIQA) | - |
 | [Utils](inference/inference_crop_standard_faces.py) | Face Restoration Helper | - |
